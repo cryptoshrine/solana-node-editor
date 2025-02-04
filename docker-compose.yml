@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_SOLANA_NETWORK=${REACT_APP_SOLANA_NETWORK}
+      - REACT_APP_RPC_URL=${REACT_APP_RPC_URL}
+    depends_on:
+      - backend
+      - solana-validator
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SOLANA_NETWORK=${SOLANA_NETWORK}
+    volumes:
+      - ./contracts:/app/programs
+    depends_on:
+      - solana-validator
+
+  solana-validator:
+    image: solana/solana:v1.16.1
+    ports:
+      - "8899:8899" # RPC
+      - "8900:8900" # WebSocket
+      - "9900:9900" # Faucet
+    command: solana-test-validator --reset --ledger /solana/ledger --rpc-port 8899
+    volumes:
+      - solana-ledger:/solana/ledger
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8899/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  solana-ledger:

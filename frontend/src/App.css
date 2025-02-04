@@ -1,0 +1,235 @@
+/* Main App Layout */
+.app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Positioning for fixed components */
+.ai-chat {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10;
+  width: 350px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 1rem;
+}
+
+.validator-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+/* Canvas Wrapper */
+.react-flow-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Node Styles */
+.node {
+  padding: 10px;
+  border-radius: 5px;
+  background: white;
+  border: 2px solid #ccc;
+  width: 150px;
+}
+
+.node-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.node-body {
+  font-size: 12px;
+}
+
+.node-field {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+}
+
+.field-label {
+  color: #666;
+}
+
+/* Node Types */
+.node.account-node { border-color: var(--node-account); }
+.node.token-node { border-color: var(--node-token); }
+.node.nft-node { border-color: var(--node-nft); }
+.node.dao-node { border-color: var(--node-dao); }
+.node.mint-node { border-color: var(--node-mint); }
+
+/* AI Chat Panel */
+.ai-chat input {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  margin: 0.5rem;
+}
+
+.ai-chat button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ai-chat button:hover {
+  opacity: 0.9;
+}
+
+.chat-input {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.chat-input button {
+  padding: 8px 16px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chat-input button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #f44336;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* Validator Status */
+.validator-status {
+  background: white;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-dot.active {
+  background: var(--success-color);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f44336;
+}
+
+.status-dot.active {
+  background: #4CAF50;
+}
+
+/* Node Toolbar */
+.node-toolbar {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: white;
+  padding: 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.node-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #f5f5f5;
+  transition: background 0.2s;
+}
+
+.node-button:hover {
+  background: #e0e0e0;
+}
+
+/* Node Content Styling */
+.node-header {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.node-body {
+  padding: 0.75rem;
+}
+
+.node-body label {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.node-body input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* CSS Variables for node colors */
+:root {
+  --node-account: #2196F3;
+  --node-token: #4CAF50;
+  --node-nft: #9C27B0;
+  --node-dao: #FF9800;
+  --node-mint: #F44336;
+}

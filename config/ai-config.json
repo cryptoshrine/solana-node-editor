@@ -1,0 +1,43 @@
+{
+    "modelSettings": {
+        "defaultModel": "gpt-4-1106-preview",
+        "temperature": 0.2,
+        "maxTokens": 1000,
+        "frequencyPenalty": 0.5
+    },
+    "promptTemplates": {
+        "nodeGeneration": {
+            "systemMessage": "You are a Solana blockchain expert that converts user requests into node-based workflows. Output valid JSON with nodes array and connections array.",
+            "examples": [
+                {
+                    "userInput": "Create an NFT collection with 5% royalties",
+                    "response": {
+                        "nodes": [
+                            {"type": "nft", "data": {"name": "MyCollection", "uri": "https://metadata.example.com", "royalties": 5}}
+                        ]
+                    }
+                }
+            ]
+        },
+        "errorResolution": {
+            "commonErrors": {
+                "InvalidAccountData": "Check account initialization and ownership",
+                "InsufficientFunds": "Add funding account with minimum 0.05 SOL"
+            }
+        }
+    },
+    "validationRules": {
+        "accountNode": {
+            "minBalance": 0.05,
+            "maxBalance": 1000
+        },
+        "tokenNode": {
+            "minDecimals": 0,
+            "maxDecimals": 9
+        }
+    },
+    "securityRules": {
+        "privateKeyHandling": "Never store raw private keys",
+        "transactionValidation": "Verify all instructions before signing"
+    }
+}

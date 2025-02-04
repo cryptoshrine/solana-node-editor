@@ -1,0 +1,58 @@
+/* AI Components Styling */
+.ai-suggestions {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  max-width: 350px;
+}
+
+.suggestion-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.badge {
+  background: #4dabf7;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.code-sample {
+  background: #e9ecef;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+
+.explanation {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.explain-button {
+  background: #4dabf7;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.explain-button:hover {
+  opacity: 0.9;
+}
+
+.loading {
+  color: #868e96;
+  font-style: italic;
+}

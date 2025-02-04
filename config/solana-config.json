@@ -1,0 +1,30 @@
+{
+    "networks": {
+        "local": {
+            "rpcUrl": "http://localhost:8899",
+            "programId": "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+        },
+        "devnet": {
+            "rpcUrl": "https://api.devnet.solana.com",
+            "programId": "Devm...."
+        },
+        "mainnet": {
+            "rpcUrl": "https://api.mainnet-beta.solana.com",
+            "programId": "Main...."
+        }
+    },
+    "programs": {
+        "systemProgram": "11111111111111111111111111111111",
+        "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        "metadataProgram": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+        "governanceProgram": "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw"
+    },
+    "settings": {
+        "commitment": "confirmed",
+        "preflightCommitment": "finalized",
+        "maxRetries": 3,
+        "feeCalculator": {
+            "lamportsPerSignature": 5000
+        }
+    }
+}

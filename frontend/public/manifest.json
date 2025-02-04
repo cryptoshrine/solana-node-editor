@@ -1,0 +1,8 @@
+{
+  "short_name": "Solana Node Editor",
+  "name": "Solana Node-Based Development Environment",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
