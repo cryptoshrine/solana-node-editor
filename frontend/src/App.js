@@ -13,6 +13,8 @@ import MainCanvas from './components/Canvas/MainCanvas';
 import AIChat from './components/ai/AIChat';
 import ValidatorStatus from './components/Canvas/ValidatorStatus';
 import Navigation from './components/Navigation';
+import { useEffect } from 'react';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 function App() {
   const [nodes, setNodes] = useState([]);

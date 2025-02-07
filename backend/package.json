@@ -13,6 +13,7 @@
     "generate-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
   },
   "dependencies": {
+    "@solana/spl-token": "^0.4.12",
     "@solana/web3.js": "^1.87.5",
     "axios": "^1.6.2",
     "cors": "^2.8.5",

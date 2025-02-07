@@ -91,11 +91,17 @@
 .mint-button { background-color: var(--node-mint); }
 
 /* Wallet Connection Styling */
+.wallet-section {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
 .wallet-button {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(90deg, #8957ff 0%, #3cefba 100%);
+  background: linear-gradient(90deg, #9945FF 0%, #14F195 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -103,41 +109,40 @@
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: all 0.2s ease;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.wallet-button:hover {
-  opacity: 0.9;
 }
 
 .wallet-button.connected {
   background: #2a2a2a;
-}
-
-.wallet-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-  opacity: 0.9;
-}
-
-.wallet-button.connect {
-  background: linear-gradient(90deg, #9945FF 0%, #14F195 100%);
-  color: white;
-}
-
-.wallet-button.connected {
-  background: #333;
   color: #14F195;
   border: 1px solid #14F195;
+  padding: 9px 19px; /* Account for border */
 }
 
 .wallet-button:hover {
+  opacity: 0.9;
   transform: scale(1.05);
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+.connected-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #14f195;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.wallet-balance {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-family: monospace;
+  color: #14F195;
+}
 /* Positioning for fixed components */
 .ai-chat {
   position: fixed;
