@@ -1,81 +1,76 @@
-// frontend/src/components/nodes/NFTNode.js
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Handle } from 'reactflow';
-import { useNodeData } from '../../../hooks/useNodeData';
-import { nftNodeProps } from '../../propTypes/nodeTypes';
+import { Handle, Position } from 'reactflow';
 
+const truncateAddress = (address) => {
+  if (!address) return '';
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+};
 
-export default function NFTNode({ id, data }) {
-  const { updateNodeData } = useNodeData(id);
-  const [newCreator, setNewCreator] = useState({ address: '', share: '' });
-
-  const addCreator = () => {
-    if (newCreator.address && newCreator.share) {
-      updateNodeData({
-        creators: [...(data.creators || []), newCreator]
-      });
-      setNewCreator({ address: '', share: '' });
-    }
-  };
+const NFTNode = ({ id, data }) => {
+  const [hoveredCreator, setHoveredCreator] = useState(null);
 
   return (
     <div className="node nft-node">
+      <Handle type="target" position={Position.Top} />
       <div className="node-header">
-        <h4>🖼 NFT Mint</h4>
-        <Handle type="source" position="right" />
+        <h4>🖼 NFT</h4>
       </div>
-
       <div className="node-body">
-        <label>
-          Metadata URI
-          <input
-            value={data.uri || ''}
-            onChange={(e) => updateNodeData({ uri: e.target.value })}
-            placeholder="https://metadata.example.com"
-          />
-        </label>
+        <div className="field">
+          <label>URI</label>
+          <div className="field-value">{data.uri}</div>
+        </div>
 
-        <label>
-          Royalties (%)
-          <input
-            type="number"
-            value={data.royalties || ''}
-            onChange={(e) => updateNodeData({ royalties: e.target.value })}
-            min="0"
-            max="100"
-          />
-        </label>
+        <div className="field">
+          <label>Royalties</label>
+          <div className="field-value">{data.royalties}%</div>
+        </div>
 
         <div className="creators-section">
           <h5>Creators</h5>
-          <div className="creator-input">
-            <input
-              placeholder="Creator Address"
-              value={newCreator.address}
-              onChange={(e) => setNewCreator({...newCreator, address: e.target.value})}
-            />
-            <input
-              type="number"
-              placeholder="Share %"
-              value={newCreator.share}
-              onChange={(e) => setNewCreator({...newCreator, share: e.target.value})}
-              min="0"
-              max="100"
-            />
-            <button onClick={addCreator}>Add</button>
+          <div className="creators-list">
+            {Array.isArray(data.creators) && data.creators.map((creator, index) => (
+              <div 
+                key={index} 
+                className="creator-item"
+                onMouseEnter={() => setHoveredCreator(index)}
+                onMouseLeave={() => setHoveredCreator(null)}
+              >
+                <div className="creator-info">
+                  <div className="creator-address">
+                    {truncateAddress(creator.address)}
+                  </div>
+                  <div className="creator-share">
+                    {creator.share}%
+                  </div>
+                </div>
+                {hoveredCreator === index && (
+                  <div className="creator-tooltip">
+                    {creator.address}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-          
-          {(data.creators || []).map((creator, index) => (
-            <div key={index} className="creator-item">
-              <span>{creator.address}</span>
-              <span>{creator.share}%</span>
-            </div>
-          ))}
         </div>
       </div>
+      <Handle type="source" position={Position.Bottom} />
     </div>
   );
-}
+};
 
-NFTNode.propTypes = nftNodeProps;
+NFTNode.propTypes = {
+  id: PropTypes.string.isRequired,
+  data: PropTypes.shape({
+    uri: PropTypes.string,
+    royalties: PropTypes.number,
+    creators: PropTypes.arrayOf(PropTypes.shape({
+      address: PropTypes.string,
+      share: PropTypes.number
+    })),
+    label: PropTypes.string
+  }).isRequired
+};
+
+export default NFTNode;

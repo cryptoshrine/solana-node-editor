@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import useAIAssistant from '../../hooks/useAIAssistant';
 
-export default function AIChat({ onSend }) {
+export default function AIChat({ onResponse }) {
   const [message, setMessage] = useState('');
   const { sendQuery, isLoading, error } = useAIAssistant();
 
@@ -9,11 +9,22 @@ export default function AIChat({ onSend }) {
     if (!message.trim()) return;
     
     try {
-      await sendQuery(message);
-      setMessage('');
-      onSend();
+      const result = await sendQuery(message);
+      console.log('AI Response:', result); // Debug log
+      if (result?.success) {
+        setMessage('');
+        // Pass the full response data to parent
+        onResponse?.(result);
+      }
     } catch (err) {
       console.error('Error sending query:', err);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
     }
   };
 
@@ -23,7 +34,7 @@ export default function AIChat({ onSend }) {
         <input 
           value={message} 
           onChange={(e) => setMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+          onKeyPress={handleKeyPress}
           placeholder="Ask AI for help..."
           disabled={isLoading}
         />
