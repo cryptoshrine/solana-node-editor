@@ -1,68 +1,75 @@
+/* Base node styling */
 .node {
-  background: white;
   border-radius: 8px;
-  border: 2px solid;
-  padding: 1rem;
-  min-width: 250px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  min-width: 200px;
+  color: white;
+  font-size: 14px;
 }
 
-.node-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+.node .node-content {
+  padding: 12px;
 }
 
-.node-header h4 {
-  margin: 0;
+.node .node-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 500;
 }
 
-.account-node { border-color: #4dabf7; }
-.token-node { border-color: #40c057; }
-.nft-node { border-color: #7950f2; }
-.dao-node { border-color: #f03e3e; }
-.mint-node { border-color: #fab005; }
+.node .node-body {
+  padding: 12px;
+}
 
-.node-body label {
+.node .node-field {
+  margin-bottom: 8px;
+}
+
+.node .field-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  margin-bottom: 4px;
   display: block;
-  margin-bottom: 0.75rem;
 }
 
-.node-body input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
+.node .field-value {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
   border-radius: 4px;
-  margin-top: 0.25rem;
+  word-break: break-all;
 }
 
-.helper-text {
-  font-size: 0.8rem;
-  color: #666;
-  display: block;
-  margin-top: 0.25rem;
+/* Node type specific colors */
+.account-node {
+  background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
 }
 
-.creators-section {
-  margin-top: 1rem;
-  border-top: 1px solid #eee;
-  padding-top: 1rem;
+.token-node {
+  background: linear-gradient(135deg, #2e7d32 0%, #43a047 100%);
 }
 
-.creator-input {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+.nft-node {
+  background: linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%);
 }
 
-.creator-input input {
-  flex: 1;
+.dao-node {
+  background: linear-gradient(135deg, #c62828 0%, #d32f2f 100%);
 }
 
-.creator-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  padding: 0.25rem 0;
+.mint-node {
+  background: linear-gradient(135deg, #e65100 0%, #f57c00 100%);
+}
+
+/* Handle styling */
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid white;
+}
+
+.react-flow__handle-top {
+  top: -4px;
+}
+
+.react-flow__handle-bottom {
+  bottom: -4px;
 }

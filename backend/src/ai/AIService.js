@@ -46,6 +46,13 @@ export default class AIService {
     }
   }
 
+  // New helper method for node IDs
+  generateNodeId(type) {
+    const timestamp = Date.now();
+    const random8 = Math.random().toString(36).substring(2, 10);
+    return `${type}-${timestamp}-${random8}`;
+  }
+
   async generateNodes(userInput, existingNodes = []) {
     try {
       // Add more structure to the prompt
@@ -151,15 +158,16 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
         console.log('Node data:', nodeData);
 
         // Create a new node with exact required structure based on type
+        const nodeType = baseType;
         const baseNode = {
-          id: node.id || `${baseType}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: baseType
+          id: this.generateNodeId(nodeType),
+          type: nodeType
         };
 
         let processedNode;
         try {
           // Add type-specific data
-          switch (baseType) {
+          switch (nodeType) {
             case 'nft':
               if (!nodeData.uri) {
                 throw new Error('NFT node missing required uri field');
@@ -182,10 +190,10 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
                 ...baseNode,
                 data: {
                   name: nodeData.name || '',
-                  symbol: nodeData.symbol || (nodeData.name || baseType).toUpperCase().slice(0, 5),
+                  symbol: nodeData.symbol || (nodeData.name || nodeType).toUpperCase().slice(0, 5),
                   decimals: parseInt(nodeData.decimals) || 0,
                   mintAuthority: nodeData.mintAuthority || '',
-                  label: nodeData.name || `${baseType} Node`
+                  label: nodeData.name || `${nodeType} Node`
                 }
               };
               break;
@@ -194,15 +202,15 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
                 ...baseNode,
                 data: {
                   ...nodeData,
-                  label: nodeData.name || `${baseType} Node`
+                  label: nodeData.name || `${nodeType} Node`
                 }
               };
           }
           console.log('Processed node:', processedNode);
           return processedNode;
         } catch (nodeError) {
-          console.error('Error processing node:', { baseType, nodeData, error: nodeError });
-          throw new Error(`Error processing ${baseType} node: ${nodeError.message}`);
+          console.error('Error processing node:', { nodeType, nodeData, error: nodeError });
+          throw new Error(`Error processing ${nodeType} node: ${nodeError.message}`);
         }
       });
 

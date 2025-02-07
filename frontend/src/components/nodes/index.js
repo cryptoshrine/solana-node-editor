@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
-import NFTNodeComponent from './NFTNode';
+import './nodes.css';
 
 const formatValue = (value) => {
   if (Array.isArray(value)) {
@@ -40,6 +40,8 @@ const createNode = (type) => {
 
 export const AccountNode = createNode('account');
 export const TokenNode = createNode('token');
-export const NFTNode = NFTNodeComponent; 
 export const DAONode = createNode('dao');
 export const MintNode = createNode('mint');
+
+// Import and export NFTNode separately since it has custom implementation
+export { default as NFTNode } from './NFTNode';
