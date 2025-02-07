@@ -6,14 +6,13 @@ import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { clusterApiUrl } from '@solana/web3.js';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import '@solana/wallet-adapter-react-ui/styles.css';
 import './App.css';
 import MainCanvas from './components/Canvas/MainCanvas';
 import AIChat from './components/ai/AIChat';
 import ValidatorStatus from './components/Canvas/ValidatorStatus';
 import Navigation from './components/Navigation';
-
-const network = WalletAdapterNetwork.Devnet;
 
 function App() {
   const [nodes, setNodes] = useState([]);
@@ -73,8 +72,13 @@ function App() {
 }
 
 function AppWrapper() {
-  const endpoint = useMemo(() => clusterApiUrl(network), []);
-  const wallets = useMemo(() => [], []);
+  const network = WalletAdapterNetwork.Devnet;
+  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  
+  const wallets = useMemo(
+    () => [new PhantomWalletAdapter()],
+    []
+  );
 
   return (
     <ConnectionProvider endpoint={endpoint}>

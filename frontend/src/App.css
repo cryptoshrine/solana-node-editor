@@ -47,9 +47,22 @@
   background: #2d2d2d;
   padding: 10px;
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.node-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wallet-section {
+  display: flex;
+  gap: 10px;
+  margin-right: 20px;
 }
 
 .nav-button {
@@ -59,7 +72,10 @@
   font-weight: 500;
   cursor: pointer;
   color: white;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .nav-button:hover {
@@ -67,11 +83,60 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.account-button { background-color: #4dabf7; }
-.token-button { background-color: #40c057; }
-.nft-button { background-color: #7950f2; }
-.dao-button { background-color: #f03e3e; }
-.mint-button { background-color: #ff922b; }
+/* Node Type Colors */
+.account-button { background-color: var(--node-account); }
+.token-button { background-color: var(--node-token); }
+.nft-button { background-color: var(--node-nft); }
+.dao-button { background-color: var(--node-dao); }
+.mint-button { background-color: var(--node-mint); }
+
+/* Wallet Connection Styling */
+.wallet-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #8957ff 0%, #3cefba 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.wallet-button:hover {
+  opacity: 0.9;
+}
+
+.wallet-button.connected {
+  background: #2a2a2a;
+}
+
+.wallet-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  opacity: 0.9;
+}
+
+.wallet-button.connect {
+  background: linear-gradient(90deg, #9945FF 0%, #14F195 100%);
+  color: white;
+}
+
+.wallet-button.connected {
+  background: #333;
+  color: #14F195;
+  border: 1px solid #14F195;
+}
+
+.wallet-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
 
 /* Positioning for fixed components */
 .ai-chat {
@@ -130,11 +195,11 @@
 }
 
 /* Node Types */
-.account-node { background-color: #4dabf7; }
-.token-node { background-color: #40c057; }
-.nft-node { background-color: #7950f2; }
-.dao-node { background-color: #f03e3e; }
-.mint-node { background-color: #ff922b; }
+.account-node { background-color: var(--node-account); }
+.token-node { background-color: var(--node-token); }
+.nft-node { background-color: var(--node-nft); }
+.dao-node { background-color: var(--node-dao); }
+.mint-node { background-color: var(--node-mint); }
 
 /* React Flow Controls */
 .react-flow__controls {
@@ -320,4 +385,6 @@
   --node-nft: #9C27B0;
   --node-dao: #FF9800;
   --node-mint: #F44336;
+  --primary-color: #9945FF;
+  --success-color: #14F195;
 }
