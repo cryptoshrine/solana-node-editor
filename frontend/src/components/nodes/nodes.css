@@ -73,3 +73,30 @@
 .react-flow__handle-bottom {
   bottom: -4px;
 }
+
+.mint-button {
+  background: linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  font-size: 0.9em;
+}
+
+.mint-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #2d2d2d;
+}
+
+.mint-button:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.tx-link {
+  cursor: pointer;
+  text-decoration: underline;
+  margin-left: 8px;
+}

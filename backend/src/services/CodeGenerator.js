@@ -1,29 +1,58 @@
-import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
 
 const TEMPLATES_PATH = path.join(process.cwd(), 'src/templates');
 
+const TEMPLATES = {
+  account: ({ id, data }) => `#[derive(Accounts)]
+pub struct ${data.name}<'info> {
+    #[account(init, payer = user, space = 8 + 64)]
+    pub data_account: Account<'info, ${data.type}>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}`,
+
+  token: ({ id, data }) => `#[program]
+mod ${data.name}_contract {
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>, ${data.params}) -> Result<()> {
+        // Initialization logic
+        Ok(())
+    }
+}`,
+
+  nft: ({ id, data }) => `#[derive(Accounts)]
+pub struct MintNFT<'info> {
+    #[account(mut)]
+    pub mint_authority: Signer<'info>,
+    #[account(
+        init,
+        payer = mint_authority,
+        mint::decimals = 0,
+        mint::authority = mint_authority,
+    )]
+    pub mint: Account<'info, Mint>,
+    // ... other accounts
+}`,
+
+  dao: ({ id, data }) => `pub struct DAOConfig {
+    pub vote_threshold: u64,
+    pub proposal_duration: i64,
+    pub treasury: Pubkey,
+}`,
+
+  mint: ({ id, data }) => `pub fn mint_tokens(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
+    // Minting logic
+    Ok(())
+}`
+};
+
 export default class CodeGenerator {
-  constructor() {
-    this.templates = {
-      account: this.loadTemplate('account.hbs'),
-      token: this.loadTemplate('token.hbs'),
-      nft: this.loadTemplate('nft.hbs'),
-      dao: this.loadTemplate('dao.hbs'),
-      mint: this.loadTemplate('mint.hbs')
-    };
-  }
-
-  loadTemplate(name) {
-    return Handlebars.compile(
-      fs.readFileSync(path.join(TEMPLATES_PATH, name), 'utf8')
-    );
-  }
-
   generate(nodes) {
     const codeParts = nodes.map(node => {
-      const template = this.templates[node.type];
+      const template = TEMPLATES[node.type];
       if (!template) throw new Error(`No template for node type: ${node.type}`);
       
       return template({
@@ -40,10 +69,12 @@ export default class CodeGenerator {
   }
 
   generateClientCode(nodes) {
-    // Generate frontend interaction code
     return nodes.map(node => 
       `// Client code for ${node.type} node\n` +
-      `export const ${node.id} = ${JSON.stringify(node.data)};`
-    ).join('\n');
+      `export const ${node.id} = {\n` +
+      `  type: '${node.type}',\n` +
+      `  data: ${JSON.stringify(node.data, null, 2).replace(/\n/g, '\n  ')}\n` +
+      `};`
+    ).join('\n\n');
   }
 }
