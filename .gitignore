@@ -56,3 +56,8 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+validator-ledger/rocksdb/
+
+validator-ledger/rocksdb/*
+validator-ledger/*.log
