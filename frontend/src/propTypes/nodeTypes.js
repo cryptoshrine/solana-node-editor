@@ -14,7 +14,8 @@ export const tokenNodeProps = {
     name: PropTypes.string,
     symbol: PropTypes.string,
     decimals: PropTypes.number,
-    mintAuthority: PropTypes.string
+    mintAuthority: PropTypes.string,
+    initialSupply: PropTypes.number
   }).isRequired
 };
 

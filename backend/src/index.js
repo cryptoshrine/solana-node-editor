@@ -27,7 +27,8 @@ const validator = new ValidatorManager();
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Security-Policy'],
+  exposedHeaders: ['Content-Security-Policy']
 }));
 app.use(express.json());
 

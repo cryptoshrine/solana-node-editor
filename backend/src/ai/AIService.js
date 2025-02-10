@@ -105,7 +105,7 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
       console.log('Sending prompt to AI:', fullPrompt);
       
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4",
+        model: "gpt-4o",
         messages: [
           { 
             role: "system", 
@@ -118,13 +118,22 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
 
       console.log('Raw AI response:', response.choices[0].message.content);
 
+      // Remove Markdown code blocks and trim whitespace
+      const rawContent = response.choices[0].message.content;
+      const cleanedContent = rawContent
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
+      console.log('Cleaned AI response:', cleanedContent);
+
       let result;
       try {
-        result = JSON.parse(response.choices[0].message.content.trim());
+        result = JSON.parse(cleanedContent);
         console.log('Parsed result:', result);
       } catch (parseError) {
         console.error('Parse error:', parseError);
-        console.error('Raw content that failed to parse:', response.choices[0].message.content);
+        console.error('Raw content that failed to parse:', rawContent);
         throw new Error(`Failed to parse AI response: ${parseError.message}`);
       }
 
@@ -181,7 +190,7 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
                     address: creator.address || '',
                     share: parseInt(creator.share) || 0
                   })) : [],
-                  label: `NFT: ${nodeData.uri?.split('/').pop() || 'Untitled'}`
+                  label: `NFT: ${nodeData.uri.split('/').pop() || 'Untitled'}`
                 }
               };
               break;
@@ -193,6 +202,7 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
                   symbol: nodeData.symbol || (nodeData.name || nodeType).toUpperCase().slice(0, 5),
                   decimals: parseInt(nodeData.decimals) || 0,
                   mintAuthority: nodeData.mintAuthority || '',
+                  initialSupply: parseInt(nodeData.initialSupply) || undefined,
                   label: nodeData.name || `${nodeType} Node`
                 }
               };
@@ -228,7 +238,7 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
 
   async generateNodesWithGPT35(userInput, existingNodes = []) {
     const response = await this.openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",

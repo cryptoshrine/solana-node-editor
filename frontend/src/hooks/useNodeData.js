@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useReactFlow } from 'reactflow';
 
-export default function useNodeData(nodeId) {
+export function useNodeData(nodeId) {
   const { getNode, setNodes } = useReactFlow();
   const node = getNode(nodeId);
   const [data, setData] = useState(node?.data || {});
@@ -15,9 +15,11 @@ export default function useNodeData(nodeId) {
     }));
   }, [data, nodeId, setNodes]);
 
-  const updateData = (newData) => {
+  const updateNodeData = (newData) => {
     setData(prev => ({ ...prev, ...newData }));
   };
 
-  return [data, updateData];
+  return { data, updateNodeData };
 }
+
+export default useNodeData;

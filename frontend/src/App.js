@@ -89,6 +89,7 @@ function App() {
                 symbol: nodeData.symbol || '',
                 decimals: parseInt(nodeData.decimals) || 0,
                 mintAuthority: nodeData.mintAuthority || '',
+                initialSupply: parseInt(nodeData.initialSupply) || undefined,
                 label: nodeData.name || 'Token Node'
               }
             };
