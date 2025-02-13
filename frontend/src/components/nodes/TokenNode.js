@@ -1,18 +1,53 @@
-// frontend/src/components/nodes/TokenNode.js
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Handle } from 'reactflow';
 import { useNodeData } from '../../hooks/useNodeData';
 import { tokenNodeProps } from '../../propTypes/nodeTypes';
 import { createToken } from '../../api/solana';
 import useWallet from '../../hooks/useWallet';
+import './TokenNode.css';
 
 export default function TokenNode({ id, data }) {
   const { updateNodeData } = useNodeData(id);
   const [errors, setErrors] = useState({});
-  const [showTooltip, setShowTooltip] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const { connected } = useWallet();
+  const nodeRef = useRef(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // Use layout effect to ensure node is properly sized
+  useLayoutEffect(() => {
+    if (nodeRef.current) {
+      let rafId;
+      let lastUpdate = 0;
+      const MIN_UPDATE_DELAY = 100; // Minimum time between updates in ms
+
+      const resizeObserver = new ResizeObserver((entries) => {
+        const now = Date.now();
+        if (now - lastUpdate >= MIN_UPDATE_DELAY) {
+          // Cancel any pending animation frame
+          if (rafId) {
+            window.cancelAnimationFrame(rafId);
+          }
+
+          // Schedule a new update
+          rafId = window.requestAnimationFrame(() => {
+            window.dispatchEvent(new Event('resize'));
+            lastUpdate = now;
+          });
+        }
+      });
+
+      resizeObserver.observe(nodeRef.current);
+      
+      return () => {
+        if (rafId) {
+          window.cancelAnimationFrame(rafId);
+        }
+        resizeObserver.disconnect();
+      };
+    }
+  }, []);
 
   const validateField = (name, value) => {
     const newErrors = { ...errors };
@@ -55,14 +90,6 @@ export default function TokenNode({ id, data }) {
 
     try {
       setIsCreating(true);
-      console.log('Creating token with data:', {
-        name: data.name,
-        symbol: data.symbol,
-        decimals: data.decimals,
-        mintAuthority: data.mintAuthority,
-        initialSupply: data.initialSupply
-      });
-
       const result = await createToken({
         name: data.name,
         symbol: data.symbol,
@@ -71,23 +98,14 @@ export default function TokenNode({ id, data }) {
         initialSupply: data.initialSupply
       });
       
-      console.log('Token creation response:', result);
-      
       // Update node with token address
       updateNodeData({ 
+        ...data,
         tokenAddress: result.token.mint,
         txId: result.token.txId,
         explorerUrl: result.token.explorerUrl
       });
       
-      console.log('Node data updated with:', {
-        tokenAddress: result.token.mint,
-        txId: result.token.txId,
-        explorerUrl: result.token.explorerUrl
-      });
-      
-      // Show success message
-      alert(`Token created successfully! View on explorer: ${result.token.explorerUrl}`);
     } catch (error) {
       console.error('Token creation error:', error);
       alert(`Failed to create token: ${error.message}`);
@@ -97,8 +115,13 @@ export default function TokenNode({ id, data }) {
   };
 
   return (
-    <div className="node token-node">
-      <Handle type="target" position="top" />
+    <div className="node token-node" ref={nodeRef}>
+      <Handle 
+        type="target" 
+        position="top"
+        isConnectable={true}
+        style={{ cursor: 'pointer' }}
+      />
       
       <div className="node-header">
         <h4> {data.name || 'Token Node'}</h4>
@@ -201,9 +224,61 @@ export default function TokenNode({ id, data }) {
             {isCreating ? 'Creating...' : 'Create Token'}
           </button>
         </div>
+
+        {data.tokenAddress && (
+          <div className="token-info">
+            <div className="address-container">
+              <span>Mint Address: </span>
+              <span 
+                className="truncated-address" 
+                title={data.tokenAddress}
+              >
+                {`${data.tokenAddress.slice(0, 4)}...${data.tokenAddress.slice(-4)}`}
+              </span>
+            </div>
+            <a 
+              href={data.explorerUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="explorer-link"
+            >
+              View on Explorer
+            </a>
+          </div>
+        )}
       </div>
 
-      <Handle type="source" position="bottom" />
+      {/* Fixed position output handle */}
+      {data.tokenAddress && (
+        <Handle
+          type="source"
+          position="right"
+          id="mintAddress"
+          isConnectable={true}
+          isValidConnection={(connection) => {
+            return connection.targetHandle === 'communityMint';
+          }}
+          style={{
+            background: '#14F195',
+            right: -8,
+            width: 12,
+            height: 12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            position: 'absolute',
+            cursor: 'pointer'
+          }}
+        >
+          <div style={{ display: 'none' }} data-mintaddress={data.tokenAddress} />
+        </Handle>
+      )}
+
+      <Handle 
+        type="source" 
+        position="bottom"
+        isConnectable={true}
+        style={{ cursor: 'pointer' }}
+      />
     </div>
   );
 }

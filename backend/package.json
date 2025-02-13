@@ -14,6 +14,7 @@
     "generate-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
   },
   "dependencies": {
+    "@solana/spl-governance": "^0.3.28",
     "@solana/spl-token": "^0.4.12",
     "@solana/web3.js": "^1.98.0",
     "axios": "^1.6.2",

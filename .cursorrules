@@ -1,0 +1,315 @@
+# Instructions
+
+During your interaction with the user, if you find anything reusable in this project (e.g. version of a library, model name), especially about a fix to a mistake you made or a correction you received, you should take note in the `Lessons` section in the `.cursorrules` file so you will not make the same mistake again. 
+
+You should also use the `.cursorrules` file as a Scratchpad to organize your thoughts. Especially when you receive a new task, you should first review the content of the Scratchpad, clear old different task if necessary, first explain the task, and plan the steps you need to take to complete the task. You can use todo markers to indicate the progress, e.g.
+[X] Task 1
+[ ] Task 2
+
+Also update the progress of the task in the Scratchpad when you finish a subtask.
+Especially when you finished a milestone, it will help to improve your depth of task accomplishment to use the Scratchpad to reflect and plan.
+The goal is to help you maintain a big picture as well as the progress of the task. Always refer to the Scratchpad when you plan the next step.
+
+# Tools
+
+Note all the tools are in python. So in the case you need to do batch processing, you can always consult the python files and write your own script.
+
+## Screenshot Verification
+
+The screenshot verification workflow allows you to capture screenshots of web pages and verify their appearance using LLMs. The following tools are available:
+
+1. Screenshot Capture:
+```bash
+venv/bin/python tools/screenshot_utils.py URL [--output OUTPUT] [--width WIDTH] [--height HEIGHT]
+```
+
+2. LLM Verification with Images:
+```bash
+venv/bin/python tools/llm_api.py --prompt "Your verification question" --provider {openai|anthropic} --image path/to/screenshot.png
+```
+
+Example workflow:
+```python
+from screenshot_utils import take_screenshot_sync
+from llm_api import query_llm
+
+# Take a screenshot
+
+screenshot_path = take_screenshot_sync('https://example.com', 'screenshot.png')
+
+# Verify with LLM
+
+response = query_llm(
+    "What is the background color and title of this webpage?",
+    provider="openai",  # or "anthropic"
+    image_path=screenshot_path
+)
+print(response)
+```
+
+## LLM
+
+You always have an LLM at your side to help you with the task. For simple tasks, you could invoke the LLM by running the following command:
+```
+venv/bin/python ./tools/llm_api.py --prompt "What is the capital of France?" --provider "anthropic"
+```
+
+The LLM API supports multiple providers:
+- OpenAI (default, model: gpt-4o)
+- Azure OpenAI (model: configured via AZURE_OPENAI_MODEL_DEPLOYMENT in .env file, defaults to gpt-4o-ms)
+- DeepSeek (model: deepseek-chat)
+- Anthropic (model: claude-3-sonnet-20240229)
+- Gemini (model: gemini-pro)
+- Local LLM (model: Qwen/Qwen2.5-32B-Instruct-AWQ)
+
+But usually it's a better idea to check the content of the file and use the APIs in the `tools/llm_api.py` file to invoke the LLM if needed.
+
+## Web browser
+
+You could use the `tools/web_scraper.py` file to scrape the web.
+```
+venv/bin/python ./tools/web_scraper.py --max-concurrent 3 URL1 URL2 URL3
+```
+This will output the content of the web pages.
+
+## Search engine
+
+You could use the `tools/search_engine.py` file to search the web.
+```
+venv/bin/python ./tools/search_engine.py "your search keywords"
+```
+This will output the search results in the following format:
+```
+URL: https://example.com
+Title: This is the title of the search result
+Snippet: This is a snippet of the search result
+```
+If needed, you can further use the `web_scraper.py` file to scrape the web page content.
+
+# Lessons
+
+## User Specified Lessons
+
+- You have a python venv in ./venv. Use it.
+- Include info useful for debugging in the program output.
+- Read the file before you try to edit it.
+- Due to Cursor's limit, when you use `git` and `gh` and need to submit a multiline commit message, first write the message in a file, and then use `git commit -F <filename>` or similar command to commit. And then remove the file. Include "[Cursor] " in the commit message and PR title.
+
+## Cursor learned
+
+- For search results, ensure proper handling of different character encodings (UTF-8) for international queries
+- Add debug information to stderr while keeping the main output clean in stdout for better pipeline integration
+- When using seaborn styles in matplotlib, use 'seaborn-v0_8' instead of 'seaborn' as the style name due to recent seaborn version changes
+- Use 'gpt-4o' as the model name for OpenAI's GPT-4 with vision capabilities
+
+# Scratchpad
+
+## Previous Task: NFT Details Analysis ✓ (COMPLETED)
+- Successfully created and analyzed NFT with specified parameters
+- Verified token configuration and metadata
+- Confirmed creator shares and royalties
+- Task completed successfully
+
+## Current Task: Token-DAO Integration Analysis
+
+### Implementation Details
+
+[X] Token-DAO Integration Flow
+1. Token Creation (TokenNode.js):
+   ```javascript
+   - Creates SPL token with specified parameters
+   - Returns mint address and transaction signature
+   - Updates node with token address for reference
+   ```
+
+2. DAO Creation (DAONode.js):
+   ```javascript
+   - Uses existing token mint as communityMint
+   - Configures governance parameters
+   - Creates realm with token voting
+   - Sets up token owner record
+   ```
+
+3. Blockchain Integration (solanaClient.js):
+   ```javascript
+   - Creates and initializes token mint
+   - Sets up token accounts and authorities
+   - Creates DAO realm with token configuration
+   - Establishes governance structure
+   ```
+
+### Key Integration Points
+
+1. Token to DAO Connection:
+   - Token mint address becomes communityMint in DAO
+   - Token supply determines voting power distribution
+   - Token holders automatically become DAO members
+
+2. Governance Configuration:
+   - Voting weight: 1 token = 1 vote
+   - Minimum tokens for governance: 1
+   - Configurable voting threshold (1-100%)
+   - Customizable voting and execution timeframes
+
+3. Multi-token Support:
+   - Primary community token (required)
+   - Optional council token for multi-tier governance
+   - Separate voting weight tracking
+   - Independent token owner records
+
+### Security Measures
+
+1. Token Validation:
+   - Mint address format verification
+   - Ed25519 curve validation
+   - Supply and decimal constraints
+   - Authority checks
+
+2. DAO Security:
+   - Required parameter validation
+   - Token existence verification
+   - Authority assignment
+   - Proper realm initialization
+
+### Next Steps
+[X] Analyze implementation details
+[X] Document integration points
+[ ] Test governance setup
+[ ] Verify voting mechanisms
+
+### Testing Focus
+1. Token Setup:
+   - Create governance token
+   - Verify mint configuration
+   - Distribute initial supply
+
+2. DAO Integration:
+   - Link token as communityMint
+   - Test voting power calculation
+   - Verify member access
+
+3. Governance Testing:
+   - Create proposals
+   - Test voting with tokens
+   - Verify threshold enforcement
+
+### Testing Plan: Token-DAO Integration Example
+
+[X] Setup Phase
+1. Create Governance Token:
+   - Name: "Community Token"
+   - Symbol: "COMM"
+   - Decimals: 6
+   - Initial Supply: 1000000
+   Token Address: A41mrL3XhedP3UgXSi6VohWhofPUmueqvATMNsvcBLFn
+   Token Account: ENyhreVJ7bSbjYBc45DBPJHX75oaAiBRHB8a3VXJ2v82
+
+[X] Test Phase 1: Token Setup
+1. ✓ Created governance token with 6 decimals
+2. ✓ Verified token parameters
+3. ✓ Minted and verified 1,000,000 initial supply
+
+[ ] Test Phase 2: DAO Creation
+1. Create DAO with token as communityMint
+2. Verify DAO configuration
+3. Test member access
+
+[ ] Test Phase 3: Governance Testing
+1. Create test proposal
+2. Vote with tokens
+3. Verify threshold calculation
+
+### Current Status
+1. Token Setup Complete:
+   - Mint: A41mrL3XhedP3UgXSi6VohWhofPUmueqvATMNsvcBLFn
+   - Account: ENyhreVJ7bSbjYBc45DBPJHX75oaAiBRHB8a3VXJ2v82
+   - Supply: 1,000,000 tokens
+   - Decimals: 6
+
+2. DAO Creation (Blocked):
+   We've encountered some setup challenges:
+   - Standard SPL governance program not directly accessible
+   - Need to use node editor's built-in DAO functionality
+   - Development environment needs to be set up
+   
+### Next Steps
+1. Set up Development Environment:
+   - Start Solana validator (already running)
+   - Start backend server (npm run dev in backend directory)
+   - Start frontend server (npm start in frontend directory)
+
+2. Create DAO Node:
+   - Use node editor interface once running
+   - Configure with our token mint
+   - Set governance parameters:
+     * Voting threshold: 10%
+     * Max voting time: 3 days
+     * Hold up time: 1 day
+
+3. Test Integration:
+   - Verify DAO creation
+   - Test voting power calculation
+   - Create test proposal
+
+### Development Environment Setup
+```bash
+# Terminal 1: Backend Server
+cd backend
+npm install
+npm run dev
+
+# Terminal 2: Frontend Server
+cd frontend
+npm install
+npm start
+```
+
+## Project Analysis: Solana Node Editor
+
+This appears to be a full-stack application for creating and managing Solana nodes with an AI-assisted interface. The project consists of several key components:
+
+### Architecture Overview
+1. Frontend (React)
+   - Visual node editor with canvas
+   - AI chat/assistance interface
+   - Wallet connection functionality
+   - Node management components (Account, DAO, NFT, Token nodes)
+
+2. Backend (Node.js)
+   - AI service integration
+   - Solana blockchain interaction
+   - Validator management
+   - API routes for AI, simulation, and Solana operations
+
+3. Smart Contracts
+   - Solana program (in Rust)
+   - IDL definitions
+
+4. Development Environment
+   - Docker support
+   - Validator scripts and configuration
+   - Testing infrastructure
+
+### Key Features
+- Visual node-based Solana program editor
+- AI assistance for code generation and explanation
+- Solana validator management
+- Wallet integration
+- Real-time blockchain interaction
+
+### Technology Stack
+- Frontend: React
+- Backend: Node.js
+- Blockchain: Solana
+- Smart Contracts: Rust
+- AI Integration: Custom AI service
+- Database: RocksDB (for validator)
+
+## Next Steps
+[ ] Review key configuration files (ai-config.json, solana-config.json)
+[ ] Examine AI integration and prompts
+[ ] Look at the core node editor implementation
+[ ] Check validator management scripts
+[ ] Review smart contract implementation
+
+Would you like me to focus on any particular aspect of the project for a deeper analysis?

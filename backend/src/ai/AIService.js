@@ -207,6 +207,29 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
                 }
               };
               break;
+            case 'dao':
+              if (!nodeData.name) {
+                throw new Error('DAO node missing required name field');
+              }
+              if (!nodeData.communityMint) {
+                throw new Error('DAO node missing required communityMint field');
+              }
+              if (!nodeData.votingThreshold || nodeData.votingThreshold < 1 || nodeData.votingThreshold > 100) {
+                throw new Error('DAO node voting threshold must be between 1-100%');
+              }
+              processedNode = {
+                ...baseNode,
+                data: {
+                  name: nodeData.name,
+                  communityMint: nodeData.communityMint || '[TOKEN_MINT_ADDRESS]',
+                  votingThreshold: nodeData.votingThreshold,
+                  maxVotingTime: nodeData.maxVotingTime || 3 * 24 * 60 * 60, // 3 days
+                  holdUpTime: nodeData.holdUpTime || 24 * 60 * 60, // 1 day
+                  label: `DAO: ${nodeData.name}`,
+                  status: 'pending' // Add initial status
+                }
+              };
+              break;
             default:
               processedNode = {
                 ...baseNode,
@@ -233,6 +256,64 @@ Current Nodes: ${JSON.stringify(existingNodes, null, 2)}`;
       console.error('AI Service error:', error);
       console.error('Error stack:', error.stack);
       throw new Error(`AI Service Error: ${error.message}`);
+    }
+  }
+
+  async generateNode(userInput) {
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: this.prompts.nodeGeneration },
+          { role: 'user', content: userInput }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      });
+
+      const nodeData = JSON.parse(response.choices[0].message.content);
+      
+      // Validate node type
+      if (!['token', 'nft', 'dao', 'mint'].includes(nodeData.type)) {
+        throw new Error(`Invalid node type: ${nodeData.type}`);
+      }
+
+      // Generate unique ID if not present
+      if (!nodeData.id) {
+        nodeData.id = `${nodeData.type}-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
+      }
+
+      // Validate required fields based on node type
+      this.validateNodeData(nodeData);
+
+      return nodeData;
+    } catch (error) {
+      console.error('Node generation error:', error);
+      throw new Error(`Failed to generate node: ${error.message}`);
+    }
+  }
+
+  validateNodeData(nodeData) {
+    const { type, data } = nodeData;
+
+    switch (type) {
+      case 'token':
+        if (!data.name) throw new Error('Token name is required');
+        if (!data.decimals && data.decimals !== 0) throw new Error('Token decimals are required');
+        break;
+
+      case 'dao':
+        if (!data.name) throw new Error('DAO name is required');
+        if (!data.communityMint) throw new Error('Community mint is required');
+        if (!data.votingThreshold || data.votingThreshold < 1 || data.votingThreshold > 100) {
+          throw new Error('Voting threshold must be between 1-100%');
+        }
+        // Set default values for optional fields
+        data.maxVotingTime = data.maxVotingTime || 3 * 24 * 60 * 60; // 3 days
+        data.holdUpTime = data.holdUpTime || 24 * 60 * 60; // 1 day
+        break;
+
+      // Add other node type validations as needed
     }
   }
 

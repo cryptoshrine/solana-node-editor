@@ -2,6 +2,22 @@ import {
   Connection, Keypair, LAMPORTS_PER_SOL, 
   SystemProgram, Transaction, PublicKey 
 } from '@solana/web3.js';
+
+import governance from '@solana/spl-governance';
+const {
+  createRealm,
+  getTokenOwnerRecordAddress,
+  GoverningTokenConfigAccountArgs,
+  GoverningTokenType,
+  MintMaxVoteWeightSource,
+  VoteThresholdPercentage,
+  VoteTipping,
+  withCreateRealm,
+  PROGRAM_VERSION,
+  PROGRAM_ID: GOVERNANCE_PROGRAM_ID,
+  createTokenOwnerRecord
+} = governance;
+
 import { 
   createInitializeMintInstruction, 
   getAssociatedTokenAddress,
@@ -10,11 +26,13 @@ import {
   TOKEN_PROGRAM_ID, 
   MINT_SIZE 
 } from '@solana/spl-token';
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import os from 'os';
+import BN from 'bn.js';
 
 // Configure environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -290,6 +308,84 @@ class SolanaClient {
         s.publicKey.equals(signer.publicKey)
       )
     );
+  }
+
+  async createDAO({
+    name,
+    communityMint,
+    councilMint,
+    votingThreshold,
+    maxVotingTime,
+    holdUpTime,
+    authority
+  }) {
+    try {
+      // Validate inputs
+      if (!name || !communityMint || !votingThreshold) {
+        throw new Error('Missing required parameters for DAO creation');
+      }
+
+      // Validate communityMint address format
+      if (!communityMint.startsWith('S') || communityMint.length !== 44) {
+        throw new Error(`Invalid mint address format: ${communityMint}`);
+      }
+
+      // Create safe public key for communityMint and check if it's on the ed25519 curve
+      const communityMintPubkey = new PublicKey(communityMint);
+      if (!PublicKey.isOnCurve(communityMintPubkey.toBuffer())) {
+        throw new Error('Mint address is not on ed25519 curve');
+      }
+
+      // Create transaction for realm creation
+      const realmAuthority = new PublicKey(authority);
+      const councilMintPubkey = councilMint ? new PublicKey(councilMint) : null;
+
+      // Configure realm settings
+      const realmConfig = {
+        communityMintMaxVoteWeightSource: { type: 0, value: 1 }, // 1 token = 1 vote
+        minCommunityTokensToCreateGovernance: new BN(1), // Minimum 1 token to create governance
+        useCommunityVoterWeightAddin: false,
+        useMaxCommunityVoterWeightAddin: false
+      };
+
+      // Create the realm
+      const realmAddress = await createRealm(
+        this.connection,
+        realmAuthority,
+        communityMintPubkey,
+        this.payer.publicKey,
+        name,
+        votingThreshold / 100, // Convert percentage to decimal
+        realmConfig,
+        councilMintPubkey,
+        PROGRAM_VERSION,
+        maxVotingTime,
+        holdUpTime
+      );
+
+      // Create token owner record for the realm creator
+      await createTokenOwnerRecord(
+        this.connection,
+        this.payer,
+        realmAddress,
+        communityMintPubkey,
+        realmAuthority
+      );
+
+      // Return creation details
+      return {
+        address: realmAddress.toBase58(),
+        name,
+        communityMint,
+        councilMint: councilMint || null,
+        authority: realmAuthority.toBase58(),
+        explorerUrl: `${this.explorerUrl}/address/${realmAddress.toBase58()}`
+      };
+
+    } catch (error) {
+      console.error('DAO Creation Error:', error);
+      throw new Error(`DAO creation failed: ${error.message}`);
+    }
   }
 }
 

@@ -115,6 +115,67 @@ router.post('/create-token', async (req, res) => {
   }
 });
 
+// DAO Creation Endpoint
+router.post('/create-dao', async (req, res) => {
+  try {
+    const { 
+      name, 
+      communityMint, 
+      councilMint, 
+      votingThreshold,
+      maxVotingTime,
+      holdUpTime,
+      authority 
+    } = req.body;
+
+    // Validate required fields
+    if (!name?.trim()) {
+      throw new Error('DAO name is required');
+    }
+    if (!communityMint) {
+      throw new Error('Community token mint is required');
+    }
+    if (!votingThreshold || votingThreshold < 1 || votingThreshold > 100) {
+      throw new Error('Voting threshold must be between 1-100%');
+    }
+
+    console.log('Creating DAO:', {
+      name,
+      communityMint,
+      councilMint,
+      votingThreshold,
+      maxVotingTime,
+      holdUpTime,
+      authority
+    });
+
+    const result = await solanaClient.createDAO({
+      name: name.trim(),
+      communityMint,
+      councilMint,
+      votingThreshold: Number(votingThreshold),
+      maxVotingTime: maxVotingTime ? Number(maxVotingTime) : 3 * 24 * 60 * 60,
+      holdUpTime: holdUpTime ? Number(holdUpTime) : 24 * 60 * 60,
+      authority
+    });
+
+    res.json({
+      success: true,
+      daoAddress: result.address,
+      signature: result.signature,
+      explorerUrl: result.explorerUrl
+    });
+
+  } catch (error) {
+    console.error('DAO Creation Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
 // Network Status Endpoint
 router.get('/network-status', async (req, res) => {
   try {

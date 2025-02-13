@@ -39,9 +39,9 @@ const createNode = (type) => {
 };
 
 export const AccountNode = createNode('account');
-export const DAONode = createNode('dao');
 export const MintNode = createNode('mint');
 
 // Import and export custom node implementations
 export { default as NFTNode } from './NFTNode';
 export { default as TokenNode } from './TokenNode';
+export { default as DAONode } from './DAONode';

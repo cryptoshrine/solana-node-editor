@@ -1,0 +1,283 @@
+.dao-node {
+  position: relative !important;
+  z-index: 1;
+  background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+}
+
+.dao-node {
+  background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+  border-radius: 8px;
+  padding: 16px;
+  color: white;
+  min-width: 250px;
+}
+
+/* Target React Flow's wrapper */
+.react-flow__node-dao {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 250px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+.react-flow__node-dao .node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+  z-index: 2;
+}
+
+.react-flow__node-dao .node-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.react-flow__node-dao .node-header button {
+  display: inline-flex !important;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  position: relative;
+  z-index: 3;
+}
+
+.react-flow__node-dao .node-header button:hover:not(:disabled) {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__node-dao .node-header button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.dao-node .node-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dao-node .node-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.dao-node h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.dao-node input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px;
+  color: white;
+  width: 100%;
+}
+
+.dao-node input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.dao-node input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dao-node input.error {
+  border-color: #ff4444;
+}
+
+.dao-node .mint-address {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.dao-node .mint-address label {
+  display: block;
+  font-size: 0.9em;
+  margin-bottom: 4px;
+}
+
+.dao-node .mint-address .address {
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.dao-node .voting-params {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dao-node .voting-params input {
+  width: 80px;
+}
+
+.dao-node .create-dao-btn {
+  background: #14F195;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.dao-node .create-dao-btn:disabled {
+  background: rgba(20, 241, 149, 0.5);
+  cursor: not-allowed;
+}
+
+.dao-node .dao-info {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.dao-node .dao-info p {
+  margin: 0 0 4px 0;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.dao-node .dao-info a {
+  color: #14F195;
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+.dao-node .dao-info a:hover {
+  text-decoration: underline;
+}
+
+.dao-node .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dao-node .input-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #666;
+}
+
+.dao-node .node-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.dao-node .node-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.dao-node .button-container {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.dao-node .wallet-warning {
+  display: block;
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.dao-node .create-button {
+  background: #14F195;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dao-node .create-button:hover:not(:disabled) {
+  background: #0fd584;
+  transform: translateY(-1px);
+}
+
+.dao-node .create-button:disabled {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
+}
+
+.dao-node input:focus {
+  outline: none;
+  border-color: #14F195;
+}
+
+.dao-node .error-message {
+  color: #ff4d4d;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.dao-node .success-message {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #e8f5e9;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.dao-node .success-message p {
+  margin: 0 0 8px 0;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.dao-node .success-message small {
+  display: block;
+  color: #666;
+  margin-top: 4px;
+}
+
+.dao-node .success-message a {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.dao-node .success-message a:hover {
+  text-decoration: underline;
+}

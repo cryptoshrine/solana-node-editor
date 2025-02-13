@@ -1,0 +1,120 @@
+.token-node {
+  background: linear-gradient(135deg, #14F195 0%, #0ea15f 100%);
+  border-radius: 8px;
+  padding: 16px;
+  color: white;
+  min-width: 250px;
+  position: relative; /* Important for absolute positioning of handles */
+}
+
+.token-node .node-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.token-node h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.token-node input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px;
+  color: white;
+  width: 100%;
+}
+
+.token-node input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.token-node input.error {
+  border-color: #ff4444;
+}
+
+.token-node button {
+  background: #000;
+  color: #14F195;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.token-node button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.token-node .token-info {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.token-node .token-info .address-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 0.9em;
+}
+
+.token-node .token-info .truncated-address {
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: help;
+  transition: background-color 0.2s;
+}
+
+.token-node .token-info .truncated-address:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.token-node .token-info p {
+  margin: 0 0 4px 0;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.token-node .token-info a {
+  color: #000;
+  text-decoration: none;
+  font-size: 0.9em;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.token-node .token-info a:hover {
+  text-decoration: underline;
+}
+
+/* Tooltip styles */
+[title] {
+  position: relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  font-size: 0.8em;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+}
