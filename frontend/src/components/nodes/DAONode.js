@@ -4,10 +4,11 @@ import { Handle, Position, useEdges } from 'reactflow';
 import { useNodeData } from '../../hooks/useNodeData';
 import useWallet from '../../hooks/useWallet';
 import toast from 'react-hot-toast';
+import { ErrorBoundary } from 'react-error-boundary';
 import './nodes.css';
 import './DAONode.css';
 
-const DAONode = ({ id, data }) => {
+const DAONodeContent = ({ id, data }) => {
   const { updateNodeData } = useNodeData(id);
   const [isCreating, setIsCreating] = useState(false);
   const { connected, publicKey } = useWallet();
@@ -15,36 +16,51 @@ const DAONode = ({ id, data }) => {
   const edges = useEdges();
   const nodeRef = useRef(null);
 
-  // Use layout effect to ensure node is properly sized
+  // Improved useLayoutEffect block for ResizeObserver
   useLayoutEffect(() => {
     if (nodeRef.current) {
       let rafId;
       let lastUpdate = 0;
-      const MIN_UPDATE_DELAY = 100; // Minimum time between updates in ms
+      const MIN_UPDATE_DELAY = 100;
 
-      const resizeObserver = new ResizeObserver((entries) => {
-        const now = Date.now();
-        if (now - lastUpdate >= MIN_UPDATE_DELAY) {
-          // Cancel any pending animation frame
-          if (rafId) {
-            window.cancelAnimationFrame(rafId);
+      const handleResize = (entries) => {
+        try {
+          const now = Date.now();
+          if (now - lastUpdate >= MIN_UPDATE_DELAY) {
+            if (rafId) {
+              window.cancelAnimationFrame(rafId);
+            }
+            rafId = window.requestAnimationFrame(() => {
+              window.dispatchEvent(new Event('resize'));
+              lastUpdate = now;
+            });
           }
-
-          // Schedule a new update
-          rafId = window.requestAnimationFrame(() => {
-            window.dispatchEvent(new Event('resize'));
-            lastUpdate = now;
-          });
+        } catch (e) {
+          if (e.message.includes('ResizeObserver')) {
+            // Silently handle ResizeObserver error
+            return;
+          }
+          console.error('Resize handling error:', e);
         }
-      });
+      };
 
-      resizeObserver.observe(nodeRef.current);
+      const resizeObserver = new ResizeObserver(handleResize);
+
+      try {
+        resizeObserver.observe(nodeRef.current);
+      } catch (error) {
+        console.warn('ResizeObserver setup failed:', error);
+      }
       
       return () => {
         if (rafId) {
           window.cancelAnimationFrame(rafId);
         }
-        resizeObserver.disconnect();
+        try {
+          resizeObserver.disconnect();
+        } catch (error) {
+          console.warn('ResizeObserver cleanup failed:', error);
+        }
       };
     }
   }, []);
@@ -53,7 +69,6 @@ const DAONode = ({ id, data }) => {
   useEffect(() => {
     const incomingEdge = edges.find(edge => edge.target === id && edge.targetHandle === 'communityMint');
     
-    // If there's no incoming edge, clear the communityMint
     if (!incomingEdge && data.communityMint) {
       console.log('Clearing DAO community mint - connection removed');
       updateNodeData({
@@ -63,7 +78,6 @@ const DAONode = ({ id, data }) => {
       return;
     }
 
-    // If there is an edge, update with the mint address
     if (incomingEdge) {
       const sourceNode = document.querySelector(`[data-id="${incomingEdge.source}"]`);
       if (sourceNode) {
@@ -88,8 +102,8 @@ const DAONode = ({ id, data }) => {
       updateNodeData({
         ...data,
         votingThreshold: 15,
-        maxVotingTime: 432000, // 5 days
-        holdUpTime: 86400, // 1 day
+        maxVotingTime: 432000,
+        holdUpTime: 86400,
         status: 'draft'
       });
     }
@@ -160,13 +174,8 @@ const DAONode = ({ id, data }) => {
         position="left"
         id="communityMint"
         isConnectable={true}
-        isValidConnection={(connection) => {
-          return connection.sourceHandle === 'mintAddress';
-        }}
-        style={{ 
-          background: '#9c27b0',
-          cursor: 'pointer'
-        }}
+        isValidConnection={(connection) => connection.sourceHandle === 'mintAddress'}
+        style={{ background: '#9c27b0', cursor: 'pointer' }}
       />
       
       <div className="node-content">
@@ -218,15 +227,23 @@ const DAONode = ({ id, data }) => {
         )}
       </div>
 
-      <Handle 
-        type="source" 
-        position="right"
-        isConnectable={true}
-        style={{ cursor: 'pointer' }}
-      />
+      <Handle type="source" position="right" isConnectable={true} style={{ cursor: 'pointer' }} />
     </div>
   );
 };
+
+// Wrap component with ErrorBoundary
+const DAONode = (props) => (
+  <ErrorBoundary
+    fallback={<div className="node dao-node error">DAO Node Error</div>}
+    onError={(error) => {
+      if (error.message.includes('ResizeObserver')) return;
+      console.error('DAONode Error:', error);
+    }}
+  >
+    <DAONodeContent {...props} />
+  </ErrorBoundary>
+);
 
 DAONode.propTypes = {
   id: PropTypes.string.isRequired,
