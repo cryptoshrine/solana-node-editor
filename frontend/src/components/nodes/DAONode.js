@@ -6,7 +6,7 @@ import useWallet from '../../hooks/useWallet';
 import { useSolana } from '../../hooks/useSolana';
 import toast from 'react-hot-toast';
 import { ErrorBoundary } from 'react-error-boundary';
-import '@solana/web3.js';  // Import PublicKey for address validation
+import { PublicKey } from '@solana/web3.js';  // Properly import PublicKey
 import './nodes.css';
 import './DAONode.css';
 
@@ -154,42 +154,55 @@ const DAONodeContent = ({ id, data }) => {
   }, []);
 
   const validateForm = () => {
+    console.log('Starting form validation with data:', nodeData);
     const errors = [];
     
     // Validate DAO name
     if (!nodeData.name?.trim()) {
+      console.log('DAO name validation failed: empty name');
       errors.push('DAO name is required');
     }
 
     // Validate community mint
     if (!nodeData.communityMint) {
+      console.log('Community mint validation failed: no mint address');
       errors.push('Token mint is required');
     } else if (
       nodeData.communityMint === '[TOKEN_MINT_ADDRESS]' || 
       nodeData.communityMint === '[MSIG_TOKEN_MINT_ADDRESS]'
     ) {
+      console.log('Community mint validation failed: placeholder address');
       errors.push('Please connect a valid token mint');
     } else {
       try {
         // Attempt to create PublicKey to validate format
-        new PublicKey(nodeData.communityMint);
+        const mintPubkey = new PublicKey(nodeData.communityMint);
+        console.log('Community mint validation passed:', mintPubkey.toBase58());
       } catch (error) {
+        console.log('Community mint validation failed:', error.message);
         errors.push('Invalid token mint address format');
       }
     }
 
     // Validate voting threshold
-    if (!nodeData.votingThreshold || 
-        nodeData.votingThreshold < 1 || 
-        nodeData.votingThreshold > 100) {
+    if (typeof nodeData.votingThreshold !== 'number') {
+      console.log('Voting threshold validation failed: not a number');
+      errors.push('Voting threshold must be a number');
+    } else if (nodeData.votingThreshold < 1 || nodeData.votingThreshold > 100) {
+      console.log('Voting threshold validation failed: out of range');
       errors.push('Voting threshold must be between 1-100%');
+    } else {
+      console.log('Voting threshold validation passed:', nodeData.votingThreshold);
     }
     
     // Display errors if any
     if (errors.length > 0) {
+      console.log('Form validation failed with errors:', errors);
       errors.forEach(error => toast.error(error));
       return false;
     }
+
+    console.log('Form validation passed');
     return true;
   };
 

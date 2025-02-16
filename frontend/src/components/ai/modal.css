@@ -1,0 +1,137 @@
+.ai-modal-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 90%;
+  background-color: transparent;
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.ai-modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.ai-modal {
+  background: white;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  position: relative;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.ai-modal-overlay.visible .ai-modal {
+  transform: translateX(0);
+}
+
+.ai-modal-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+}
+
+.ai-modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1a202c;
+  margin: 0;
+}
+
+.ai-modal-close {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: #64748b;
+  transition: color 0.2s;
+}
+
+.ai-modal-close:hover {
+  color: #1a202c;
+}
+
+.ai-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-history {
+  flex: 1;
+  margin-bottom: 16px;
+}
+
+.chat-input {
+  margin-top: auto;
+  background: #f9fafb;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.ai-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Floating chat toggle button */
+.ai-chat-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.ai-chat-toggle:hover {
+  transform: translateY(-2px);
+  background: #4338ca;
+}
+
+.ai-chat-toggle svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .ai-modal-overlay {
+    width: 100%;
+  }
+  
+  .ai-modal-body {
+    padding: 16px;
+  }
+} 

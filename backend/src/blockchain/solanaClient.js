@@ -17,18 +17,35 @@ import {
   MINT_SIZE 
 } from '@solana/spl-token';
 
-// Import SPL Governance as a CommonJS module
-import splGovPkg from '@solana/spl-governance';
+// Import SPL Governance
+import * as splGovPkg from '@solana/spl-governance';
+
+// Initialize GOVERNANCE_PROGRAM_ID
+const GOVERNANCE_PROGRAM_ID = new PublicKey('GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw');
+
+// Access functions from the namespace
 const {
-  createCreateRealmInstruction,
   PROGRAM_VERSION_V2,
   MintMaxVoteWeightSource,
   VoteTipping,
-  GOVERNANCE_PROGRAM_ID,
   getTokenOwnerRecordAddress,
   getRealmConfigAddress,
-  createSetRealmAuthorityInstruction
+  withCreateRealm,
+  withSetRealmAuthority,
+  GoverningTokenType
 } = splGovPkg;
+
+// Log available functions for debugging
+console.log('Available SPL Governance functions:', Object.keys(splGovPkg));
+
+// Define primitive values for enums
+const GOVERNING_TOKEN_TYPE_LIQUID = 0; // GoverningTokenType.Liquid
+const MINT_MAX_VOTE_WEIGHT_SOURCE_FULL_SUPPLY_FRACTION = 0; // MintMaxVoteWeightSource.FULL_SUPPLY_FRACTION
+const PROGRAM_VERSION = 2; // Use explicit version number
+
+if (!withCreateRealm) {
+  throw new Error('withCreateRealm not found in @solana/spl-governance');
+}
 
 import BN from 'bn.js';
 import fs from 'fs';
@@ -346,64 +363,55 @@ class SolanaClient {
       const realmKeypair = Keypair.generate();
       console.log('Created realm keypair:', realmKeypair.publicKey.toBase58());
 
-      // Create governance config
-      const realmConfig = {
-        communityMintMaxVoteWeightSource: MintMaxVoteWeightSource.FULL_SUPPLY_FRACTION,
-        minCommunityTokensToCreateGovernance: new BN(1),
-        communityVotingThreshold: new BN(votingThreshold * 100), // Convert to basis points
-        communityVetoVoteThreshold: new BN(0),
-        communityVoteTipping: VoteTipping.Strict,
-        councilVoteTipping: VoteTipping.Strict,
-        minCouncilTokensToCreateGovernance: new BN(1),
-        councilVotingThreshold: new BN(0),
-        councilVetoVoteThreshold: new BN(0),
-        communityVotingPeriod: new BN(maxVotingTime),
-        councilVotingPeriod: new BN(maxVotingTime),
-        votingCoolOffTime: new BN(holdUpTime),
-        depositExemptProposalCount: 10
-      };
+      // Convert realm public key to proper instance
+      const realmPubkey = new PublicKey(realmKeypair.publicKey.toBase58());
+      console.log('Converted realm pubkey:', realmPubkey.toBase58());
+
+      // Get realm config address with proper PublicKey instances
+      console.log('Getting realm config address with:');
+      console.log('- Program ID:', GOVERNANCE_PROGRAM_ID.toBase58());
+      console.log('- Realm:', realmPubkey.toBase58());
+
+      const realmConfigAddress = await getRealmConfigAddress(
+        GOVERNANCE_PROGRAM_ID,
+        realmPubkey
+      );
+
+      console.log('Realm config address:', realmConfigAddress.toBase58());
 
       // Create the transaction
       const transaction = new Transaction();
 
-      // Get realm config address
-      const realmConfigAddress = await getRealmConfigAddress(
-        GOVERNANCE_PROGRAM_ID,
-        realmKeypair.publicKey
-      );
-
-      // Create realm instruction
-      const createRealmIx = createCreateRealmInstruction(
-        {
-          realm: realmKeypair.publicKey,
-          realmAuthority: this.payer.publicKey,
-          communityMint: communityMintPubkey,
-          payer: this.payer.publicKey,
-          realmConfig: realmConfigAddress,
-          governanceProgram: GOVERNANCE_PROGRAM_ID
+      // Create realm instruction with proper program version and primitive values
+      const createRealmArgs = {
+        name: name.trim(),
+        communityTokenConfig: {
+          voterWeightAddin: undefined,
+          maxVoterWeightAddin: undefined,
+          tokenType: GOVERNING_TOKEN_TYPE_LIQUID,
+          reserved: new Uint8Array(128)
         },
-        {
-          name: name.trim(),
-          configArgs: {
-            useCouncilMint: false,
-            communityMintMaxVoteWeightSource: realmConfig.communityMintMaxVoteWeightSource,
-            minCommunityTokensToCreateGovernance: realmConfig.minCommunityTokensToCreateGovernance,
-            communityVotingThreshold: realmConfig.communityVotingThreshold,
-            communityVetoVoteThreshold: realmConfig.communityVetoVoteThreshold,
-            communityVoteTipping: realmConfig.communityVoteTipping,
-            councilVoteTipping: realmConfig.councilVoteTipping,
-            minCouncilTokensToCreateGovernance: realmConfig.minCouncilTokensToCreateGovernance,
-            councilVotingThreshold: realmConfig.councilVotingThreshold,
-            councilVetoVoteThreshold: realmConfig.councilVetoVoteThreshold,
-            communityVotingPeriod: realmConfig.communityVotingPeriod,
-            councilVotingPeriod: realmConfig.councilVotingPeriod,
-            votingCoolOffTime: realmConfig.votingCoolOffTime,
-            depositExemptProposalCount: realmConfig.depositExemptProposalCount
-          }
-        }
-      );
+        councilTokenConfig: {
+          voterWeightAddin: undefined,
+          maxVoterWeightAddin: undefined,
+          tokenType: GOVERNING_TOKEN_TYPE_LIQUID,
+          reserved: new Uint8Array(128)
+        },
+        communityMint: communityMintPubkey,
+        councilMint: undefined,
+        minCommunityTokensToCreateGovernance: new BN(1),
+        communityMintMaxVoteWeightSource: MINT_MAX_VOTE_WEIGHT_SOURCE_FULL_SUPPLY_FRACTION,
+        realmAuthority: this.payer.publicKey,
+        programVersion: typeof PROGRAM_VERSION === 'object' ? PROGRAM_VERSION.toNumber() : PROGRAM_VERSION
+      };
 
-      transaction.add(createRealmIx);
+      console.log('Creating realm with args:', createRealmArgs);
+
+      const createRealmIx = await withCreateRealm(
+        transaction,
+        GOVERNANCE_PROGRAM_ID,
+        createRealmArgs
+      );
 
       // Get token owner record
       const tokenOwnerRecordAddress = await getTokenOwnerRecordAddress(
@@ -413,16 +421,15 @@ class SolanaClient {
         this.payer.publicKey
       );
 
-      // Set realm authority instruction
-      const setAuthorityIx = createSetRealmAuthorityInstruction({
-        programId: GOVERNANCE_PROGRAM_ID,
-        realmAuthority: this.payer.publicKey,
-        realm: realmKeypair.publicKey,
-        newRealmAuthority: this.payer.publicKey,
-        tokenOwnerRecord: tokenOwnerRecordAddress
-      });
-
-      transaction.add(setAuthorityIx);
+      // Set realm authority using withSetRealmAuthority
+      await withSetRealmAuthority(
+        transaction,
+        GOVERNANCE_PROGRAM_ID,
+        realmKeypair.publicKey,
+        this.payer.publicKey,
+        this.payer.publicKey,
+        tokenOwnerRecordAddress
+      );
 
       console.log('Sending DAO creation transaction...');
       const signature = await this.sendTransaction(transaction, [realmKeypair]);
