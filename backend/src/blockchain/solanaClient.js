@@ -17,36 +17,6 @@ import {
   MINT_SIZE 
 } from '@solana/spl-token';
 
-// Import SPL Governance
-import * as splGovPkg from '@solana/spl-governance';
-
-// Initialize GOVERNANCE_PROGRAM_ID
-const GOVERNANCE_PROGRAM_ID = new PublicKey('GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw');
-
-// Access functions from the namespace
-const {
-  PROGRAM_VERSION_V2,
-  MintMaxVoteWeightSource,
-  VoteTipping,
-  getTokenOwnerRecordAddress,
-  getRealmConfigAddress,
-  withCreateRealm,
-  withSetRealmAuthority,
-  GoverningTokenType
-} = splGovPkg;
-
-// Log available functions for debugging
-console.log('Available SPL Governance functions:', Object.keys(splGovPkg));
-
-// Define primitive values for enums
-const GOVERNING_TOKEN_TYPE_LIQUID = 0; // GoverningTokenType.Liquid
-const MINT_MAX_VOTE_WEIGHT_SOURCE_FULL_SUPPLY_FRACTION = 0; // MintMaxVoteWeightSource.FULL_SUPPLY_FRACTION
-const PROGRAM_VERSION = 2; // Use explicit version number
-
-if (!withCreateRealm) {
-  throw new Error('withCreateRealm not found in @solana/spl-governance');
-}
-
 import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
@@ -59,6 +29,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
+import { CustomDaoClient } from './customDaoClient.js';
+
 class SolanaClient {
   constructor() {
     const rpcUrl = process.env.RPC_URL || 'http://localhost:8899';
@@ -70,6 +42,19 @@ class SolanaClient {
     );
     this.payer = this.initializePayerKeypair();
     this.explorerUrl = process.env.EXPLORER_URL || 'https://explorer.solana.com';
+    
+    // Initialize custom DAO client
+    this.daoClient = new CustomDaoClient(this.connection, {
+      publicKey: this.payer.publicKey,
+      signTransaction: async (tx) => {
+        tx.partialSign(this.payer);
+        return tx;
+      },
+      signAllTransactions: async (txs) => {
+        txs.forEach(tx => tx.partialSign(this.payer));
+        return txs;
+      },
+    });
     
     console.log(`Solana Client Initialized:
       Network: ${process.env.SOLANA_NETWORK || 'localnet'}
@@ -332,123 +317,112 @@ class SolanaClient {
 
   async createDAO(params) {
     try {
-      const { 
-        name, 
-        communityMint, 
+      console.log('Creating DAO with params:', params);
+
+      // Validate parameters
+      const {
+        name,
+        communityMint,
         votingThreshold,
-        maxVotingTime = 3 * 24 * 60 * 60, // 3 days default
-        holdUpTime = 24 * 60 * 60 // 1 day default
+        maxVotingTime = 432000, // 5 days default
+        holdUpTime = 86400,     // 1 day default
       } = params;
 
-      // Validate inputs
-      if (!name?.trim()) {
-        throw new Error('DAO name is required');
-      }
-      if (!communityMint) {
-        throw new Error('Community mint address is required');
-      }
-      if (!votingThreshold || votingThreshold < 1 || votingThreshold > 100) {
-        throw new Error('Voting threshold must be between 1-100%');
+      if (!name || !communityMint) {
+        throw new Error('Name and community mint are required');
       }
 
-      // Convert addresses to PublicKeys with validation
-      let communityMintPubkey;
-      try {
-        communityMintPubkey = new PublicKey(communityMint);
-      } catch (error) {
-        throw new Error(`Invalid community mint address: ${error.message}`);
-      }
-
-      // Create the realm keypair
-      const realmKeypair = Keypair.generate();
-      console.log('Created realm keypair:', realmKeypair.publicKey.toBase58());
-
-      // Convert realm public key to proper instance
-      const realmPubkey = new PublicKey(realmKeypair.publicKey.toBase58());
-      console.log('Converted realm pubkey:', realmPubkey.toBase58());
-
-      // Get realm config address with proper PublicKey instances
-      console.log('Getting realm config address with:');
-      console.log('- Program ID:', GOVERNANCE_PROGRAM_ID.toBase58());
-      console.log('- Realm:', realmPubkey.toBase58());
-
-      const realmConfigAddress = await getRealmConfigAddress(
-        GOVERNANCE_PROGRAM_ID,
-        realmPubkey
-      );
-
-      console.log('Realm config address:', realmConfigAddress.toBase58());
-
-      // Create the transaction
-      const transaction = new Transaction();
-
-      // Create realm instruction with proper program version and primitive values
-      const createRealmArgs = {
-        name: name.trim(),
-        communityTokenConfig: {
-          voterWeightAddin: undefined,
-          maxVoterWeightAddin: undefined,
-          tokenType: GOVERNING_TOKEN_TYPE_LIQUID,
-          reserved: new Uint8Array(128)
-        },
-        councilTokenConfig: {
-          voterWeightAddin: undefined,
-          maxVoterWeightAddin: undefined,
-          tokenType: GOVERNING_TOKEN_TYPE_LIQUID,
-          reserved: new Uint8Array(128)
-        },
-        communityMint: communityMintPubkey,
-        councilMint: undefined,
-        minCommunityTokensToCreateGovernance: new BN(1),
-        communityMintMaxVoteWeightSource: MINT_MAX_VOTE_WEIGHT_SOURCE_FULL_SUPPLY_FRACTION,
-        realmAuthority: this.payer.publicKey,
-        programVersion: typeof PROGRAM_VERSION === 'object' ? PROGRAM_VERSION.toNumber() : PROGRAM_VERSION
-      };
-
-      console.log('Creating realm with args:', createRealmArgs);
-
-      const createRealmIx = await withCreateRealm(
-        transaction,
-        GOVERNANCE_PROGRAM_ID,
-        createRealmArgs
-      );
-
-      // Get token owner record
-      const tokenOwnerRecordAddress = await getTokenOwnerRecordAddress(
-        GOVERNANCE_PROGRAM_ID,
-        realmKeypair.publicKey,
-        communityMintPubkey,
-        this.payer.publicKey
-      );
-
-      // Set realm authority using withSetRealmAuthority
-      await withSetRealmAuthority(
-        transaction,
-        GOVERNANCE_PROGRAM_ID,
-        realmKeypair.publicKey,
-        this.payer.publicKey,
-        this.payer.publicKey,
-        tokenOwnerRecordAddress
-      );
-
-      console.log('Sending DAO creation transaction...');
-      const signature = await this.sendTransaction(transaction, [realmKeypair]);
-      console.log('DAO creation transaction sent:', signature);
+      // Create DAO using our custom client
+      const result = await this.daoClient.createDao({
+        name,
+        communityMint,
+        votingThreshold: Math.floor(votingThreshold),
+        maxVotingTime,
+        holdUpTime,
+      });
 
       return {
-        name: name.trim(),
-        realmAddress: realmKeypair.publicKey.toBase58(),
-        communityMint: communityMintPubkey.toBase58(),
-        txId: signature,
-        explorerUrl: `${this.explorerUrl}/tx/${signature}`
+        ...result,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
       };
 
     } catch (error) {
       console.error('DAO Creation Error:', {
+        params,
         error: error.message,
         stack: error.stack
       });
       throw new Error(`DAO creation failed: ${error.message}`);
+    }
+  }
+
+  async createProposal(params) {
+    try {
+      console.log('Creating proposal with params:', params);
+
+      const { daoAddress, description } = params;
+      if (!daoAddress || !description) {
+        throw new Error('DAO address and description are required');
+      }
+
+      const result = await this.daoClient.createProposal(daoAddress, {
+        description,
+      });
+
+      return {
+        ...result,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+      };
+
+    } catch (error) {
+      console.error('Proposal Creation Error:', error);
+      throw new Error(`Failed to create proposal: ${error.message}`);
+    }
+  }
+
+  async castVote(params) {
+    try {
+      console.log('Casting vote with params:', params);
+
+      const { daoAddress, proposalAddress, voteType } = params;
+      if (!daoAddress || !proposalAddress || !voteType) {
+        throw new Error('DAO address, proposal address, and vote type are required');
+      }
+
+      const result = await this.daoClient.castVote(daoAddress, proposalAddress, {
+        voteType,
+      });
+
+      return {
+        ...result,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+      };
+
+    } catch (error) {
+      console.error('Vote Casting Error:', error);
+      throw new Error(`Failed to cast vote: ${error.message}`);
+    }
+  }
+
+  async executeProposal(params) {
+    try {
+      console.log('Executing proposal with params:', params);
+
+      const { daoAddress, proposalAddress } = params;
+      if (!daoAddress || !proposalAddress) {
+        throw new Error('DAO address and proposal address are required');
+      }
+
+      const result = await this.daoClient.executeProposal(daoAddress, proposalAddress);
+
+      return {
+        ...result,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+      };
+
+    } catch (error) {
+      console.error('Proposal Execution Error:', error);
+      throw new Error(`Failed to execute proposal: ${error.message}`);
     }
   }
 }

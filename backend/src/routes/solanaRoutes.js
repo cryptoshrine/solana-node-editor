@@ -232,4 +232,170 @@ router.get('/network-status', async (req, res) => {
   }
 });
 
+// Create proposal
+router.post('/create-proposal', async (req, res) => {
+  try {
+    const { daoAddress, description } = req.body;
+
+    const result = await solanaClient.createProposal({
+      daoAddress,
+      description
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Create Proposal Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
+// Cast vote
+router.post('/cast-vote', async (req, res) => {
+  try {
+    const { daoAddress, proposalAddress, voteType } = req.body;
+
+    const result = await solanaClient.castVote({
+      daoAddress,
+      proposalAddress,
+      voteType
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Cast Vote Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
+// Execute proposal
+router.post('/execute-proposal', async (req, res) => {
+  try {
+    const { daoAddress, proposalAddress } = req.body;
+
+    const result = await solanaClient.executeProposal({
+      daoAddress,
+      proposalAddress
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Execute Proposal Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
+// Get DAO info
+router.get('/dao/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    const result = await solanaClient.daoClient.program.account.dao.fetch(
+      new PublicKey(address)
+    );
+
+    res.json({
+      address,
+      name: result.name,
+      authority: result.authority.toString(),
+      communityToken: result.communityToken.toString(),
+      votingThreshold: result.config.votingThreshold.toNumber(),
+      maxVotingTime: result.config.maxVotingTime.toString(),
+      holdUpTime: result.config.holdUpTime.toString(),
+      proposalCount: result.proposalCount.toString(),
+      totalSupply: result.totalSupply.toString(),
+    });
+  } catch (error) {
+    console.error('Get DAO Info Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
+// Get proposal info
+router.get('/proposal/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    const result = await solanaClient.daoClient.program.account.proposal.fetch(
+      new PublicKey(address)
+    );
+
+    res.json({
+      address,
+      creator: result.creator.toString(),
+      description: result.description,
+      forVotes: result.forVotes.toString(),
+      againstVotes: result.againstVotes.toString(),
+      startTime: result.startTime.toString(),
+      endTime: result.endTime.toString(),
+      status: result.status,
+    });
+  } catch (error) {
+    console.error('Get Proposal Info Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
+// Get all proposals for a DAO
+router.get('/dao/:address/proposals', async (req, res) => {
+  try {
+    const { address } = req.params;
+
+    const proposals = await solanaClient.daoClient.program.account.proposal.all([
+      {
+        memcmp: {
+          offset: 8, // After discriminator
+          bytes: address,
+        },
+      },
+    ]);
+
+    res.json(proposals.map(p => ({
+      address: p.publicKey.toString(),
+      creator: p.account.creator.toString(),
+      description: p.account.description,
+      forVotes: p.account.forVotes.toString(),
+      againstVotes: p.account.againstVotes.toString(),
+      startTime: p.account.startTime.toString(),
+      endTime: p.account.endTime.toString(),
+      status: p.account.status,
+    })));
+  } catch (error) {
+    console.error('Get Proposals Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.details
+    });
+  }
+});
+
+// Error handling middleware
+router.use((err, req, res, next) => {
+  console.error('Solana Route Error:', err);
+  res.status(500).json({
+    error: err.message || 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 export default router;

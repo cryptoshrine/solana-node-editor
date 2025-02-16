@@ -2,14 +2,303 @@
   position: relative !important;
   z-index: 1;
   background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+  border-radius: 12px;
+  padding: 20px;
+  min-width: 320px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: white;
 }
 
-.dao-node {
-  background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+.dao-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dao-header h3 {
+  margin: 0;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+
+.status-badge {
+  background: rgba(20, 241, 149, 0.2);
+  color: #14F195;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+.dao-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 0.9em;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dao-node input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: white;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.dao-node input:focus {
+  outline: none;
+  border-color: #14F195;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dao-node input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.mint-address {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mint-address.connected {
+  border-color: #14F195;
+  background: rgba(20, 241, 149, 0.1);
+}
+
+.mint-address label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mint-address .address {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85em;
+  display: block;
+  word-break: break-all;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.create-dao-btn {
+  background: #14F195;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.create-dao-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(20, 241, 149, 0.2);
+}
+
+.create-dao-btn:disabled {
+  background: rgba(20, 241, 149, 0.5);
+  cursor: not-allowed;
+}
+
+.dao-info {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9em;
+}
+
+.info-value {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85em;
+  color: #14F195;
+}
+
+.proposals-section {
+  margin-top: 24px;
+}
+
+.proposals-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 1.1em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.proposal-input {
+  width: 100%;
+  min-height: 80px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  color: white;
+  font-size: 0.95rem;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.submit-btn, .cancel-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-btn {
+  background: #14F195;
+  color: #000;
+}
+
+.cancel-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.new-proposal-btn {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.new-proposal-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.proposal-item {
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   padding: 16px;
+  margin-bottom: 12px;
+}
+
+.proposal-item h5 {
+  margin: 0 0 12px 0;
+  font-size: 1em;
   color: white;
-  min-width: 250px;
+}
+
+.proposal-status {
+  margin-bottom: 12px;
+  font-size: 0.9em;
+}
+
+.status-active { color: #14F195; }
+.status-succeeded { color: #14F195; }
+.status-defeated { color: #ff4444; }
+.status-executed { color: #2196F3; }
+
+.vote-counts {
+  margin: 12px 0;
+}
+
+.vote-bar {
+  height: 6px;
+  background: rgba(255, 0, 0, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.for-votes {
+  height: 100%;
+  background: rgba(20, 241, 149, 0.7);
+  transition: width 0.3s ease;
+}
+
+.vote-numbers {
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.vote-for, .vote-against, .execute-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vote-for {
+  background: rgba(20, 241, 149, 0.2);
+  color: #14F195;
+}
+
+.vote-against {
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+}
+
+.execute-btn {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196F3;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.vote-for:hover, .vote-against:hover, .execute-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
 }
 
 /* Target React Flow's wrapper */
@@ -210,14 +499,6 @@
   gap: 12px;
 }
 
-.dao-node .input-group label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: #666;
-}
-
 .dao-node .node-input {
   padding: 8px;
   border: 1px solid #ddd;
@@ -303,4 +584,204 @@
 
 .dao-node .success-message a:hover {
   text-decoration: underline;
+}
+
+.dao-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dao-content h3 {
+  margin: 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dao-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dao-form input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.dao-form input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.dao-form button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.dao-form button:hover {
+  background-color: #45a049;
+}
+
+.dao-form button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.dao-info {
+  border-top: 1px solid #eee;
+  padding-top: 16px;
+}
+
+.dao-info p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.proposals-section {
+  margin-top: 16px;
+}
+
+.proposals-section h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.create-proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.create-proposal textarea {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-height: 80px;
+  resize: vertical;
+  font-size: 14px;
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.proposal-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.proposal-actions button:first-child {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.proposal-actions button:last-child {
+  background-color: #f44336;
+  color: white;
+}
+
+.proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.proposal-item {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.proposal-item h5 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.proposal-item p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.vote-buttons button {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.vote-buttons button:first-child {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.vote-buttons button:last-child {
+  background-color: #f44336;
+  color: white;
+}
+
+.proposal-item button {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.proposal-item button:hover {
+  opacity: 0.9;
+}
+
+/* Custom scrollbar for proposals list */
+.proposals-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.proposals-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.proposals-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.proposals-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }

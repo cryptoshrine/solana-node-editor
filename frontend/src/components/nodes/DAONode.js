@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Handle, Position, useEdges, useNodes } from 'reactflow';
 import { useNodeData } from '../../hooks/useNodeData';
@@ -6,7 +6,7 @@ import useWallet from '../../hooks/useWallet';
 import { useSolana } from '../../hooks/useSolana';
 import toast from 'react-hot-toast';
 import { ErrorBoundary } from 'react-error-boundary';
-import { PublicKey } from '@solana/web3.js';  // Properly import PublicKey
+import { PublicKey } from '@solana/web3.js';
 import './nodes.css';
 import './DAONode.css';
 
@@ -19,90 +19,131 @@ const debounce = (fn, delay = 500) => {
   };
 };
 
-const DAONodeContent = ({ id, data }) => {
+const DAONodeContent = ({ id, data, onNodeDataChange }) => {
   const { validateAddress } = useSolana();
   const { connected, publicKey } = useWallet();
   const edges = useEdges();
   const nodes = useNodes();
   const [nodeData, setNodeData] = useState(data);
   const nodeRef = useRef(null);
-  const prevMintRef = useRef(nodeData.communityMint);
+  const [proposals, setProposals] = useState([]);
+  const [selectedProposal, setSelectedProposal] = useState(null);
+  const [isCreatingProposal, setIsCreatingProposal] = useState(false);
+  const [proposalDescription, setProposalDescription] = useState('');
+
+  // Update state and notify parent
+  const updateNodeData = useCallback((newData) => {
+    setNodeData(prev => {
+      const updated = { ...prev, ...newData };
+      // Notify parent component of changes
+      if (onNodeDataChange) {
+        onNodeDataChange(id, updated);
+      }
+      return updated;
+    });
+  }, [id, onNodeDataChange]);
+
+  // Sync with parent data when it changes
+  useEffect(() => {
+    console.log('Parent data changed:', data);
+    updateNodeData(data);
+  }, [data, updateNodeData]);
 
   // Debug edges whenever they change
   useEffect(() => {
-    console.log('Current edges:', edges);
-    console.log('Current nodes:', nodes);
-  }, [edges, nodes]);
+    console.log('Edge/Node Debug:', {
+      edges,
+      nodes,
+      currentNodeId: id,
+      currentCommunityMint: nodeData.communityMint,
+      status: nodeData.status,
+      parentData: data,
+      nodeDataRef: nodeRef.current
+    });
+  }, [edges, nodes, id, nodeData, data]);
 
   // Handle edge connections
   useEffect(() => {
-    // Debug current state
-    console.log('Checking edges:', edges?.length, 'Current mint:', nodeData.communityMint);
-
     if (!edges?.length) {
-      if (nodeData.communityMint && nodeData.communityMint !== '[TOKEN_MINT_ADDRESS]') {
-        console.log('No edges, resetting community mint');
-        setNodeData(prev => ({
-          ...prev,
+      console.log('No edges found');
+      // Only reset if the DAO is not active
+      if (nodeData.communityMint && 
+          nodeData.status !== 'active' && 
+          nodeData.communityMint !== '[TOKEN_MINT_ADDRESS]') {
+        console.log('Resetting community mint - no edges');
+        updateNodeData({
           communityMint: '',
           status: 'pending'
-        }));
+        });
       }
       return;
     }
 
     // Find connected token node
-    const tokenConnection = edges.find(edge => {
-      console.log('Checking edge:', edge);
-      return edge.source !== id && edge.target === id && edge.targetHandle === 'communityMint';
-    });
+    const tokenConnection = edges.find(edge => 
+      edge.target === id && edge.targetHandle === 'communityMint'
+    );
+
+    console.log('Token connection:', tokenConnection);
 
     if (!tokenConnection) {
       console.log('No token connection found');
-      if (nodeData.communityMint) {
-        setNodeData(prev => ({
-          ...prev,
+      // Only reset if the DAO is not active
+      if (nodeData.communityMint && nodeData.status !== 'active') {
+        console.log('Resetting community mint - no token connection');
+        updateNodeData({
           communityMint: '',
           status: 'pending'
-        }));
+        });
       }
       return;
     }
 
-    console.log('Found token connection:', tokenConnection);
-
     // Get connected node
     const tokenNode = nodes.find(n => n.id === tokenConnection.source);
-
-    console.log('Token node:', tokenNode);
+    console.log('Found token node:', tokenNode);
 
     if (tokenNode?.data?.mint) {
       const mintAddress = tokenNode.data.mint;
-      console.log('Found mint address:', mintAddress);
-
-      if (mintAddress !== nodeData.communityMint && validateAddress(mintAddress)) {
+      console.log('Token mint address:', mintAddress);
+      
+      // Update if:
+      // 1. DAO is not active AND
+      // 2. New mint address is different from current AND
+      // 3. Mint address is valid
+      if (nodeData.status !== 'active' && 
+          mintAddress !== nodeData.communityMint && 
+          validateAddress(mintAddress)) {
         console.log('Updating community mint to:', mintAddress);
-        setNodeData(prev => ({
-          ...prev,
+        updateNodeData({
           communityMint: mintAddress,
           status: 'pending'
-        }));
+        });
+      } else {
+        console.log('Not updating community mint because:', {
+          isActive: nodeData.status === 'active',
+          sameAddress: mintAddress === nodeData.communityMint,
+          isValidAddress: validateAddress(mintAddress),
+          currentMint: nodeData.communityMint,
+          newMint: mintAddress
+        });
       }
+    } else {
+      console.log('No mint address found in token node:', tokenNode);
     }
-  }, [edges, nodes, id, nodeData.communityMint, validateAddress]);
+  }, [edges, nodes, id, nodeData.status, validateAddress, updateNodeData]);
 
   // Initialize defaults only once on mount
   useEffect(() => {
     if (!nodeData.votingThreshold) {
-      setNodeData(prev => ({
-        ...prev,
-        votingThreshold: 15,
-        maxVotingTime: 432000,
-        holdUpTime: 86400,
+      updateNodeData({
+        votingThreshold: 51,
+        maxVotingTime: 432000, // 5 days
+        holdUpTime: 86400, // 1 day
         status: 'pending'
-      }));
+      });
     }
-  }, []); // Empty dependency array for initialization
+  }, []);
 
   // Improved useLayoutEffect block for ResizeObserver
   useLayoutEffect(() => {
@@ -125,7 +166,6 @@ const DAONodeContent = ({ id, data }) => {
           }
         } catch (e) {
           if (e.message.includes('ResizeObserver')) {
-            // Silently handle ResizeObserver error
             return;
           }
           console.error('Resize handling error:', e);
@@ -154,256 +194,388 @@ const DAONodeContent = ({ id, data }) => {
   }, []);
 
   const validateForm = () => {
-    console.log('Starting form validation with data:', nodeData);
     const errors = [];
     
-    // Validate DAO name
     if (!nodeData.name?.trim()) {
-      console.log('DAO name validation failed: empty name');
       errors.push('DAO name is required');
     }
 
-    // Validate community mint
     if (!nodeData.communityMint) {
-      console.log('Community mint validation failed: no mint address');
       errors.push('Token mint is required');
     } else if (
       nodeData.communityMint === '[TOKEN_MINT_ADDRESS]' || 
       nodeData.communityMint === '[MSIG_TOKEN_MINT_ADDRESS]'
     ) {
-      console.log('Community mint validation failed: placeholder address');
       errors.push('Please connect a valid token mint');
     } else {
       try {
-        // Attempt to create PublicKey to validate format
-        const mintPubkey = new PublicKey(nodeData.communityMint);
-        console.log('Community mint validation passed:', mintPubkey.toBase58());
+        new PublicKey(nodeData.communityMint);
       } catch (error) {
-        console.log('Community mint validation failed:', error.message);
         errors.push('Invalid token mint address format');
       }
     }
 
-    // Validate voting threshold
     if (typeof nodeData.votingThreshold !== 'number') {
-      console.log('Voting threshold validation failed: not a number');
       errors.push('Voting threshold must be a number');
     } else if (nodeData.votingThreshold < 1 || nodeData.votingThreshold > 100) {
-      console.log('Voting threshold validation failed: out of range');
       errors.push('Voting threshold must be between 1-100%');
-    } else {
-      console.log('Voting threshold validation passed:', nodeData.votingThreshold);
     }
     
-    // Display errors if any
     if (errors.length > 0) {
-      console.log('Form validation failed with errors:', errors);
       errors.forEach(error => toast.error(error));
       return false;
     }
 
-    console.log('Form validation passed');
     return true;
   };
 
   const handleCreateDAO = useCallback(async () => {
-    console.log('handleCreateDAO called');
-    console.log('Current nodeData:', nodeData);
-    console.log('Wallet status:', { connected, publicKey: publicKey?.toString() });
-
     if (!validateForm()) {
-      console.log('Form validation failed');
       return;
     }
     
     if (!connected || !publicKey) {
-      console.log('Wallet not connected');
       toast.error('Please connect your wallet first');
       return;
     }
 
     const toastId = toast.loading('Creating DAO...');
-    console.log('Started DAO creation with toast ID:', toastId);
 
     try {
-      // Get the API URL from environment variable or default
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      
-      // Log the current state before making the request
-      const requestData = {
-        name: nodeData.name.trim(),
-        communityMint: nodeData.communityMint,
-        votingThreshold: parseInt(nodeData.votingThreshold),
-        maxVotingTime: nodeData.maxVotingTime || 432000, // 5 days default
-        holdUpTime: nodeData.holdUpTime || 86400, // 1 day default
-        authority: publicKey.toString()
-      };
-
-      console.log('Preparing DAO creation request:', requestData);
-
-      if (!nodeData.communityMint || nodeData.communityMint === '[TOKEN_MINT_ADDRESS]') {
-        console.log('Invalid community mint:', nodeData.communityMint);
-        throw new Error('Please connect a valid token mint first');
-      }
-
-      console.log('Sending DAO creation request to:', `${apiUrl}/api/solana/create-dao`);
       
       const response = await fetch(`${apiUrl}/api/solana/create-dao`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify({
+          name: nodeData.name.trim(),
+          communityMint: nodeData.communityMint,
+          votingThreshold: nodeData.votingThreshold,
+          maxVotingTime: nodeData.maxVotingTime,
+          holdUpTime: nodeData.holdUpTime,
+          authority: publicKey.toString()
+        }),
       });
 
-      console.log('Received response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      const responseText = await response.text();
-      console.log('Raw response text:', responseText);
-
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-        console.log('Parsed response data:', responseData);
-      } catch (error) {
-        console.error('Failed to parse response:', error);
-        throw new Error('Invalid response format from server');
-      }
-
       if (!response.ok) {
-        console.error('Server error response:', responseData);
-        throw new Error(responseData.error || `Server error: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      if (!responseData.success) {
-        console.error('DAO creation failed:', responseData);
-        throw new Error(responseData.error || 'DAO creation failed');
-      }
-
-      if (!responseData.realmAddress || !responseData.txId) {
-        console.error('Missing required fields in response:', responseData);
-        throw new Error('Invalid server response: missing required fields');
-      }
-
-      console.log('DAO creation successful:', responseData);
-
-      const newState = {
-        ...nodeData,
-        daoAddress: responseData.realmAddress,
-        txSignature: responseData.txId,
-        status: 'created',
-        explorerUrl: responseData.explorerUrl || 
-          `https://explorer.solana.com/tx/${responseData.txId}?cluster=${process.env.REACT_APP_SOLANA_NETWORK || 'devnet'}`
-      };
-
-      console.log('Updating node state to:', newState);
-      setNodeData(newState);
+      const result = await response.json();
+      
+      updateNodeData({
+        address: result.address,
+        status: 'active',
+        explorerUrl: result.explorerUrl
+      });
 
       toast.success('DAO created successfully!', { id: toastId });
       
-      console.log('DAO creation completed successfully');
-
     } catch (error) {
       console.error('DAO Creation Error:', error);
-      console.error('Error stack:', error.stack);
       toast.error(`Failed to create DAO: ${error.message}`, { id: toastId });
-      
-      setNodeData(prev => {
-        const newState = {
-          ...prev,
-          status: 'error',
-          error: error.message
-        };
-        console.log('Updating node state after error:', newState);
-        return newState;
-      });
     }
-  }, [connected, publicKey, nodeData, validateForm]);
+  }, [nodeData, connected, publicKey, updateNodeData]);
+
+  const handleCreateProposal = useCallback(async () => {
+    if (!connected || !publicKey) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    if (!proposalDescription.trim()) {
+      toast.error('Please enter a proposal description');
+      return;
+    }
+
+    const toastId = toast.loading('Creating proposal...');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${apiUrl}/api/solana/create-proposal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          daoAddress: nodeData.address,
+          description: proposalDescription.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      setProposals(prev => [...prev, result]);
+      setProposalDescription('');
+      setIsCreatingProposal(false);
+      
+      toast.success('Proposal created successfully!', { id: toastId });
+      
+    } catch (error) {
+      console.error('Proposal Creation Error:', error);
+      toast.error(`Failed to create proposal: ${error.message}`, { id: toastId });
+    }
+  }, [nodeData.address, proposalDescription, connected, publicKey]);
+
+  const handleVote = useCallback(async (proposalAddress, voteType) => {
+    if (!connected || !publicKey) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    const toastId = toast.loading('Casting vote...');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${apiUrl}/api/solana/cast-vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          daoAddress: nodeData.address,
+          proposalAddress,
+          voteType,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      setProposals(prev => 
+        prev.map(p => 
+          p.address === proposalAddress 
+            ? { 
+                ...p, 
+                forVotes: result.forVotes,
+                againstVotes: result.againstVotes,
+                status: result.proposalStatus 
+              }
+            : p
+        )
+      );
+      
+      toast.success('Vote cast successfully!', { id: toastId });
+      
+    } catch (error) {
+      console.error('Vote Casting Error:', error);
+      toast.error(`Failed to cast vote: ${error.message}`, { id: toastId });
+    }
+  }, [nodeData.address, connected, publicKey]);
+
+  const handleExecuteProposal = useCallback(async (proposalAddress) => {
+    if (!connected || !publicKey) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    const toastId = toast.loading('Executing proposal...');
+
+    try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      
+      const response = await fetch(`${apiUrl}/api/solana/execute-proposal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          daoAddress: nodeData.address,
+          proposalAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      setProposals(prev => 
+        prev.map(p => 
+          p.address === proposalAddress 
+            ? { ...p, status: result.status }
+            : p
+        )
+      );
+      
+      toast.success('Proposal executed successfully!', { id: toastId });
+      
+    } catch (error) {
+      console.error('Proposal Execution Error:', error);
+      toast.error(`Failed to execute proposal: ${error.message}`, { id: toastId });
+    }
+  }, [nodeData.address, connected, publicKey]);
 
   return (
-    <div className="node dao-node" ref={nodeRef}>
+    <div className="dao-node" ref={nodeRef}>
       <Handle
         type="target"
-        position="left"
+        position={Position.Left}
         id="communityMint"
-        isConnectable={true}
-        isValidConnection={(connection) => connection.sourceHandle === 'mintAddress'}
-        style={{ background: '#9c27b0', cursor: 'pointer' }}
+        style={{ background: '#555' }}
       />
       
-      <div className="node-content">
-        <h3>DAO Node</h3>
-        <input
-          type="text"
-          value={nodeData.name || ''}
-          onChange={(e) => setNodeData({ ...nodeData, name: e.target.value })}
-          placeholder="DAO Name"
-        />
+      <div className="dao-content">
+        <div className="dao-header">
+          <h3>DAO Node</h3>
+          {nodeData.status === 'active' && (
+            <div className="dao-status">
+              <span className="status-badge">Active</span>
+            </div>
+          )}
+        </div>
         
-        <div className="mint-address">
-          <label>Community Token:</label>
-          <span className="address" title={nodeData.communityMint || 'Connect a token'}>
-            {nodeData.communityMint 
-              ? `${nodeData.communityMint.slice(0, 4)}...${nodeData.communityMint.slice(-4)}` 
-              : 'Connect token mint'}
-          </span>
+        <div className="dao-form">
+          <div className="input-group">
+            <label htmlFor="daoName">DAO Name</label>
+            <input
+              id="daoName"
+              type="text"
+              placeholder="Enter DAO name"
+              value={nodeData.name || ''}
+              onChange={(e) => updateNodeData({ name: e.target.value })}
+              disabled={nodeData.status === 'active'}
+            />
+          </div>
+          
+          <div className="input-group">
+            <label htmlFor="votingThreshold">Voting Threshold (%)</label>
+            <input
+              id="votingThreshold"
+              type="number"
+              placeholder="Enter threshold (1-100)"
+              value={nodeData.votingThreshold || ''}
+              onChange={(e) => updateNodeData({ 
+                votingThreshold: parseInt(e.target.value) 
+              })}
+              min="1"
+              max="100"
+              disabled={nodeData.status === 'active'}
+            />
+          </div>
+
+          {nodeData.communityMint && nodeData.communityMint !== '[TOKEN_MINT_ADDRESS]' && (
+            <div className="mint-address connected">
+              <label>Community Token</label>
+              <span className="address">{nodeData.communityMint}</span>
+            </div>
+          )}
+          
+          {nodeData.status === 'pending' && (
+            <button 
+              className="create-dao-btn"
+              onClick={handleCreateDAO}
+              disabled={!connected || !nodeData.communityMint || nodeData.communityMint === '[TOKEN_MINT_ADDRESS]'}
+            >
+              {!connected ? 'Connect Wallet' : 'Create DAO'}
+            </button>
+          )}
         </div>
 
-        <div className="voting-params">
-          <label>Voting Threshold (%):</label>
-          <input
-            type="number"
-            value={nodeData.votingThreshold || ''}
-            onChange={(e) => setNodeData({ ...nodeData, votingThreshold: parseInt(e.target.value) })}
-            min="1"
-            max="100"
-          />
-        </div>
-
-        <button 
-          onClick={() => {
-            console.log('Create DAO button clicked');
-            handleCreateDAO();
-          }}
-          disabled={!connected || !nodeData.communityMint}
-          className="create-dao-btn"
-        >
-          Create DAO
-        </button>
-
-        {nodeData.status === 'created' && nodeData.daoAddress && (
+        {nodeData.status === 'active' && (
           <div className="dao-info">
-            <p>DAO Address: {nodeData.daoAddress.slice(0, 4)}...{nodeData.daoAddress.slice(-4)}</p>
-            <a href={nodeData.explorerUrl} target="_blank" rel="noopener noreferrer">
-              View on Explorer
-            </a>
+            <div className="info-row">
+              <span className="info-label">DAO Address</span>
+              <span className="info-value">{nodeData.address}</span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Token</span>
+              <span className="info-value">{nodeData.communityMint}</span>
+            </div>
+            
+            <div className="proposals-section">
+              <h4>Proposals</h4>
+              
+              {isCreatingProposal ? (
+                <div className="create-proposal">
+                  <textarea
+                    placeholder="Enter proposal description"
+                    value={proposalDescription}
+                    onChange={(e) => setProposalDescription(e.target.value)}
+                    className="proposal-input"
+                  />
+                  <div className="proposal-actions">
+                    <button className="submit-btn" onClick={handleCreateProposal}>Submit</button>
+                    <button className="cancel-btn" onClick={() => setIsCreatingProposal(false)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="new-proposal-btn" onClick={() => setIsCreatingProposal(true)}>
+                  New Proposal
+                </button>
+              )}
+
+              <div className="proposals-list">
+                {proposals.map(proposal => (
+                  <div key={proposal.address} className="proposal-item">
+                    <h5>{proposal.description}</h5>
+                    <div className="proposal-status">
+                      Status: <span className={`status-${proposal.status.toLowerCase()}`}>{proposal.status}</span>
+                    </div>
+                    <div className="vote-counts">
+                      <div className="vote-bar">
+                        <div 
+                          className="for-votes" 
+                          style={{width: `${(proposal.forVotes / (proposal.forVotes + proposal.againstVotes)) * 100}%`}}
+                        />
+                      </div>
+                      <div className="vote-numbers">
+                        For: {proposal.forVotes} Against: {proposal.againstVotes}
+                      </div>
+                    </div>
+                    
+                    {proposal.status === 'Active' && (
+                      <div className="vote-buttons">
+                        <button className="vote-for" onClick={() => handleVote(proposal.address, { for: {} })}>
+                          Vote For
+                        </button>
+                        <button className="vote-against" onClick={() => handleVote(proposal.address, { against: {} })}>
+                          Vote Against
+                        </button>
+                      </div>
+                    )}
+                    
+                    {proposal.status === 'Succeeded' && (
+                      <button className="execute-btn" onClick={() => handleExecuteProposal(proposal.address)}>
+                        Execute
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      <Handle type="source" position="right" isConnectable={true} style={{ cursor: 'pointer' }} />
     </div>
   );
 };
 
-// Wrap component with ErrorBoundary
+DAONodeContent.propTypes = {
+  id: PropTypes.string.isRequired,
+  data: PropTypes.object.isRequired,
+  onNodeDataChange: PropTypes.func
+};
+
 const DAONode = (props) => (
   <ErrorBoundary
-    fallback={<div className="node dao-node error">DAO Node Error</div>}
-    onError={(error) => {
-      if (error.message.includes('ResizeObserver')) return;
-      console.error('DAONode Error:', error);
-    }}
+    fallback={<div>Something went wrong with this node.</div>}
+    onError={(error) => console.error('DAONode Error:', error)}
   >
     <DAONodeContent {...props} />
   </ErrorBoundary>
 );
-
-DAONode.propTypes = {
-  id: PropTypes.string.isRequired,
-  data: PropTypes.object
-};
 
 export default DAONode;
