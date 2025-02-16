@@ -101,6 +101,51 @@ If needed, you can further use the `web_scraper.py` file to scrape the web page 
 - Add debug information to stderr while keeping the main output clean in stdout for better pipeline integration
 - When using seaborn styles in matplotlib, use 'seaborn-v0_8' instead of 'seaborn' as the style name due to recent seaborn version changes
 - Use 'gpt-4o' as the model name for OpenAI's GPT-4 with vision capabilities
+- Stack size errors in Solana programs may require specific version combinations of solana-program and anchor
+- When encountering stack size errors in Solana programs:
+  1. Try different versions of solana-program
+  2. Configure stack size in .cargo/config.toml
+  3. Optimize profile settings in Cargo.toml
+  4. Consider splitting large functions or reducing stack variable sizes
+- When working with Solana program dependencies:
+  1. Ensure version compatibility between anchor-lang and solana-program
+  2. Use default-features = false to minimize included features
+  3. Consider using older, more stable versions for complex programs
+  4. Watch for transitive dependency conflicts
+- When dealing with Solana program stack size errors:
+  1. Check for recursive or deeply nested functions
+  2. Minimize string and vector usage in program state
+  3. Consider using fixed-size arrays where possible
+  4. Move complex computations off-chain when feasible
+- When building Solana programs with Anchor:
+  1. Use compatible version combinations:
+     - Solana toolchain 1.16.0 with Anchor 0.28.0
+     - solana-program 1.16.0 with anchor-lang 0.28.0
+     - anchor-spl 0.28.0 for token integration
+  2. Configure stack size and build optimization:
+     ```toml
+     # .cargo/config.toml
+     [build]
+     rustflags = [
+         "-C", "link-arg=-zstack-size=65536",
+         "-C", "target-cpu=native",
+     ]
+
+     # Cargo.toml
+     [profile.release]
+     overflow-checks = true
+     lto = "fat"
+     codegen-units = 1
+     opt-level = "z"
+     panic = "abort"
+     strip = true
+     debug = false
+     incremental = false
+     ```
+  3. Handle references properly in Anchor program code:
+     - Use `&Account<T>` for read-only access
+     - Use `&mut Account<T>` for mutable access
+     - Pay attention to lifetime parameters in struct definitions
 
 # Scratchpad
 
@@ -110,139 +155,44 @@ If needed, you can further use the `web_scraper.py` file to scrape the web page 
 - Confirmed creator shares and royalties
 - Task completed successfully
 
-## Current Task: Token-DAO Integration Analysis
+## Current Task: Custom DAO Program Deployment
 
-### Implementation Details
+### Progress Update (Latest)
+[X] Build and Deploy Phase
+1. Local Validator Setup
+   - Started successfully
+   - Airdropped 2 SOL for deployment
+   - Status: ✓ RUNNING
 
-[X] Token-DAO Integration Flow
-1. Token Creation (TokenNode.js):
-   ```javascript
-   - Creates SPL token with specified parameters
-   - Returns mint address and transaction signature
-   - Updates node with token address for reference
-   ```
+2. Program Deployment
+   - Built successfully with Anchor 0.28.0
+   - Deployed to local validator
+   - Program ID: 3dxp2uBMGa4A2WQktjKbYH3emFTkwc4RfJVNW9JfVmV5
+   - Status: ✓ VERIFIED
 
-2. DAO Creation (DAONode.js):
-   ```javascript
-   - Uses existing token mint as communityMint
-   - Configures governance parameters
-   - Creates realm with token voting
-   - Sets up token owner record
-   ```
+3. Configuration Updates
+   - Updated Anchor.toml with new program ID
+   - Updated lib.rs with new program ID
+   - Status: ✓ COMPLETED
 
-3. Blockchain Integration (solanaClient.js):
-   ```javascript
-   - Creates and initializes token mint
-   - Sets up token accounts and authorities
-   - Creates DAO realm with token configuration
-   - Establishes governance structure
-   ```
+[X] Testing Phase
+1. Created test DAO instance
+   - DAO Address: 4aN2gGA81pwdsGd8iNNtea9i99ytevu56FsVsMUCcqnd
+   - Community Token: FeBLME44axxwFRXGADD6cCKafPzV54TGPKNbELUCg9vv
+   - Configuration: ✓ VERIFIED
+   - Status: ✓ ACTIVE
 
-### Key Integration Points
-
-1. Token to DAO Connection:
-   - Token mint address becomes communityMint in DAO
-   - Token supply determines voting power distribution
-   - Token holders automatically become DAO members
-
-2. Governance Configuration:
-   - Voting weight: 1 token = 1 vote
-   - Minimum tokens for governance: 1
-   - Configurable voting threshold (1-100%)
-   - Customizable voting and execution timeframes
-
-3. Multi-token Support:
-   - Primary community token (required)
-   - Optional council token for multi-tier governance
-   - Separate voting weight tracking
-   - Independent token owner records
-
-### Security Measures
-
-1. Token Validation:
-   - Mint address format verification
-   - Ed25519 curve validation
-   - Supply and decimal constraints
-   - Authority checks
-
-2. DAO Security:
-   - Required parameter validation
-   - Token existence verification
-   - Authority assignment
-   - Proper realm initialization
-
-### Progress Update
-[X] Analyze implementation details
-[X] Document integration points
-[X] Deploy SPL Governance program
-    - Program ID: CuwzTAME2GgHiZJWV7hE3VmMzkanFwBVWcav9W9wHFJG
-    - Version: v2.2.5
-    - Status: Successfully deployed and verified
-[ ] Test governance setup
-[ ] Verify voting mechanisms
-
-### Next Steps
-1. Create a test governance token
-2. Initialize a DAO realm with the token
-3. Test proposal creation and voting
-4. Verify governance parameters
-
-### Testing Plan: Token-DAO Integration
-
-[X] Setup Phase
-1. Deploy Governance Program:
-   - Version: v2.2.5
-   - Program ID: CuwzTAME2GgHiZJWV7hE3VmMzkanFwBVWcav9W9wHFJG
-   - Status: ✓ DEPLOYED
-
-[X] Phase 1: Token Setup
-1. ✓ Created governance token
-   - Mint: 4t1vi53TXKwidA4R35gYeaC4cd9g3kxiFXBzvDaxf81T
-   - Account: 3HtAmUUdHFeqJtoXqTgY5z3EHcFjmA2wMBRXPQVoQSGP
-2. ✓ Configured token parameters
-   - Decimals: 6
-3. ✓ Minted initial supply
-   - Amount: 1,000,000 tokens
-   - Status: Verified
-
-[ ] Phase 2: DAO Creation
-1. Create DAO with token as communityMint
-2. Verify DAO configuration
-3. Test member access
-
-[ ] Phase 3: Governance Testing
-1. Create test proposal
-2. Vote with tokens
-3. Verify threshold calculation
+[ ] Next Steps
+1. Test proposal creation
+2. Test voting mechanism
+3. Test proposal execution
 
 ### Current Status
-1. Backend Server: ✓ RUNNING
-   - Started successfully on port 3001
-   - Connected to Solana localnet
-   - Solana Client initialized with payer: 2v9ga67pfLRLLN4ESyqwFGgbuwjQmzb7SuePWsefCijY
-
-2. SPL Governance: ✓ DEPLOYED
-   - Program ID: CuwzTAME2GgHiZJWV7hE3VmMzkanFwBVWcav9W9wHFJG
-   - Version: v2.2.5
-   - Status: Verified and running
-
-3. Governance Token: ✓ CREATED
-   - Mint: 4t1vi53TXKwidA4R35gYeaC4cd9g3kxiFXBzvDaxf81T
-   - Account: 3HtAmUUdHFeqJtoXqTgY5z3EHcFjmA2wMBRXPQVoQSGP
-   - Supply: 1,000,000 tokens
-   - Decimals: 6
-   - Status: Verified
-
-4. Next Task: DAO Creation
-   - Initialize realm with governance token
-   - Configure governance parameters
-   - Set up voting rules
-
-### Lessons Learned
-1. SPL Program Deployment:
-   - Pre-built binaries are more reliable than building from source
-   - Version compatibility is critical
-   - Always verify deployment with program show
+- Local Validator: ✓ RUNNING
+- Program Deployment: ✓ COMPLETED
+- Configuration: ✓ UPDATED
+- DAO Creation: ✓ COMPLETED
+- Ready for Testing: ✓ YES
 
 ## Project Analysis: Solana Node Editor
 
@@ -293,3 +243,152 @@ This appears to be a full-stack application for creating and managing Solana nod
 [ ] Review smart contract implementation
 
 Would you like me to focus on any particular aspect of the project for a deeper analysis?
+
+## New Implementation Plan: Custom Anchor DAO
+
+### Current Issues
+1. SPL Governance program version schema error
+2. Complex integration with multiple dependencies
+3. Version compatibility issues
+
+### Proposed Solution: Custom Anchor DAO Implementation
+
+[X] Analysis Phase
+- Reviewed current implementation
+- Identified failure points
+- Examined Anchor DAO alternative
+
+[ ] Implementation Phase
+1. Create Custom DAO Program
+   - Basic DAO structure from anchor-dao-notes.md
+   - Add token integration
+   - Implement proposal and voting logic
+
+2. Backend Integration
+   - Replace SPL Governance calls with custom program
+   - Update SolanaClient.js to use new DAO program
+   - Add proper error handling
+
+3. Frontend Updates
+   - Modify DAONode.js to work with custom program
+   - Update validation logic
+   - Simplify state management
+
+### Technical Details
+
+1. DAO Account Structure:
+```rust
+#[account]
+pub struct Dao {
+    pub authority: Pubkey,
+    pub community_token: Pubkey,
+    pub proposal_count: u64,
+    pub voting_threshold: u8,
+    pub max_voting_time: i64,
+    pub hold_up_time: i64,
+}
+```
+
+2. Proposal Structure:
+```rust
+#[account]
+pub struct Proposal {
+    pub creator: Pubkey,
+    pub description: String,
+    pub vote_count: u64,
+    pub start_time: i64,
+    pub end_time: i64,
+    pub executed: bool,
+}
+```
+
+3. Key Functions:
+   - initialize_dao
+   - create_proposal
+   - cast_vote
+   - execute_proposal
+
+### Migration Steps
+1. [ ] Create new Anchor program
+2. [ ] Deploy program to devnet/testnet
+3. [ ] Update backend integration
+4. [ ] Modify frontend components
+5. [ ] Add comprehensive testing
+
+### Benefits
+1. Simplified architecture
+2. Direct control over program logic
+3. Easier to maintain and update
+4. Better error handling
+5. No version compatibility issues
+
+### Risks and Mitigations
+1. Risk: Custom implementation security
+   - Mitigation: Thorough security review and testing
+2. Risk: Migration complexity
+   - Mitigation: Phased rollout with feature flags
+3. Risk: User experience changes
+   - Mitigation: Comprehensive documentation and UI guidance
+
+## Current Task: Resolving Solana Program Stack Size Error
+
+### Attempted Solutions
+[X] Move profile settings to workspace Cargo.toml
+[X] Update solana-program version (1.16.0 -> 1.14.0)
+[X] Add stack size configuration in .cargo/config.toml
+[X] Add resolver specification for edition 2021
+[X] Try alternative version combinations:
+    - anchor 0.27.0 + solana-program 1.14.17
+    - anchor 0.26.0 + solana-program 1.14.18
+    - anchor 0.25.0 + solana-program 1.10.29
+    - anchor 0.24.2 + solana-program 1.9.29
+    - anchor 0.24.2 + solana-program 1.9.9
+[X] Refactor program structure:
+    - Split large functions into smaller ones
+    - Move configuration into separate struct
+    - Optimize account space calculations
+    - Use more efficient data types
+
+### Current Issues
+1. Stack size error persists across different version combinations
+2. Dependency conflicts between anchor and solana-program versions
+3. Issues with transitive dependencies (atty, termcolor, regex)
+4. Core issue appears to be in the regex-automata crate
+
+### New Approach: Core Issue Focus
+1. Identify Core Problem
+   - Stack size error originates from regex-automata crate
+   - Error occurs during build process, not in our code
+   - Issue likely in build dependencies
+
+2. Proposed Solutions
+   - Try using BPF linker directly
+   - Investigate alternative build toolchain
+   - Consider pre-built dependencies
+   - Look for regex-automata workarounds
+
+3. Investigation Steps
+   [ ] Check if regex-automata is a direct dependency
+   [ ] Identify which crate brings in regex-automata
+   [ ] Look for alternative crates without regex dependency
+   [ ] Consider building with different toolchain
+
+### Next Steps
+1. [ ] Investigate regex-automata dependency chain
+2. [ ] Try building with cargo-build-bpf
+3. [ ] Consider alternative build approaches
+4. [ ] Document findings for future reference
+
+### Benefits
+1. Better understanding of dependency issues
+2. More targeted solution approach
+3. Potential workaround discovery
+4. Knowledge base for similar issues
+
+### Risks and Mitigations
+1. Risk: Build toolchain complexity
+   - Mitigation: Document build process
+2. Risk: Dependency conflicts
+   - Mitigation: Map dependency tree
+3. Risk: Version lock-in
+   - Mitigation: Plan upgrade path

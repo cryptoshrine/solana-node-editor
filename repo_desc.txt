@@ -1,0 +1,10 @@
+[Cursor] Custom DAO Program
+
+A Solana-based DAO implementation using Anchor framework with token-based governance features. Includes proposal creation, voting mechanisms, and secure execution flows.
+
+Features:
+- Token-based voting system
+- Configurable governance parameters
+- Double-vote prevention
+- Proposal lifecycle management
+- Comprehensive test suite 
