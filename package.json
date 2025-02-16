@@ -1,4 +1,13 @@
 {
+  "name": "solana-node-editor",
+  "version": "1.0.0",
+  "description": "Visual node editor for Solana development",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "build": "cd backend && npm install && cd ../frontend && npm install && npm run build",
+    "test": "cd backend && npm test"
+  },
   "dependencies": {
     "@solana/wallet-adapter-react": "^0.15.35",
     "@solana/wallet-adapter-react-ui": "^0.9.35",

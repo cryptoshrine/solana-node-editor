@@ -21,14 +21,14 @@ console.log('Environment variables loaded:', {
 
 // Express server setup
 const app = express();
-const validator = new ValidatorManager();
+const validatorManager = new ValidatorManager();
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Content-Security-Policy'],
-  exposedHeaders: ['Content-Security-Policy']
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json());
 
@@ -44,14 +44,25 @@ app.get('/health', (req, res) => res.json({
   rpcNode: process.env.RPC_URL
 }));
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  res.status(500).json({
+    success: false,
+    error: err.message,
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 // Start services
 const startServer = async () => {
   try {
-    await validator.start();
+    await validatorManager.start();
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {
       console.log(`Backend API running on port ${PORT}`);
       console.log(`Connected to Solana ${process.env.SOLANA_NETWORK} via ${process.env.RPC_URL}`);
+      console.log(`Accepting requests from: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
     });
   } catch (error) {
     console.error('Server startup failed:', error);
@@ -62,7 +73,7 @@ const startServer = async () => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
-  await validator.stop();
+  await validatorManager.stop();
   process.exit();
 });
 

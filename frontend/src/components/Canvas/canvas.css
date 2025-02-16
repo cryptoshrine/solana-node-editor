@@ -132,3 +132,27 @@
   right: 350px;
   z-index: 5;
 }
+
+/* Edge Styling */
+.react-flow__edge {
+  pointer-events: all;
+}
+
+.react-flow__edge-path {
+  stroke: #14F195;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 3px rgba(20, 241, 149, 0.5));
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #0fd584;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 5px rgba(20, 241, 149, 0.7));
+}
+
+/* Connection Line */
+.react-flow__connection-path {
+  stroke: #14F195;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 3px rgba(20, 241, 149, 0.5));
+}

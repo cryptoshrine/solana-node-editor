@@ -1,6 +1,7 @@
 // backend/src/routes/solanaRoutes.js
 import { Router } from 'express';
 import { solanaClient } from '../blockchain/solanaClient.js';
+import { PublicKey } from '@solana/web3.js';
 
 const router = Router();
 
@@ -121,57 +122,102 @@ router.post('/create-dao', async (req, res) => {
     const { 
       name, 
       communityMint, 
-      councilMint, 
       votingThreshold,
       maxVotingTime,
       holdUpTime,
       authority 
     } = req.body;
 
-    // Validate required fields
-    if (!name?.trim()) {
-      throw new Error('DAO name is required');
-    }
-    if (!communityMint) {
-      throw new Error('Community token mint is required');
-    }
-    if (!votingThreshold || votingThreshold < 1 || votingThreshold > 100) {
-      throw new Error('Voting threshold must be between 1-100%');
-    }
-
-    console.log('Creating DAO:', {
+    console.log('Received DAO creation request:', {
       name,
       communityMint,
-      councilMint,
       votingThreshold,
       maxVotingTime,
       holdUpTime,
       authority
     });
 
+    // Validate required fields
+    const errors = [];
+    
+    if (!name?.trim()) {
+      errors.push('DAO name is required');
+    }
+    
+    if (!communityMint) {
+      errors.push('Community token mint is required');
+    } else {
+      try {
+        new PublicKey(communityMint);
+      } catch (error) {
+        errors.push('Invalid community mint address format');
+      }
+    }
+    
+    if (!votingThreshold) {
+      errors.push('Voting threshold is required');
+    } else if (typeof votingThreshold !== 'number' || 
+               votingThreshold < 1 || 
+               votingThreshold > 100) {
+      errors.push('Voting threshold must be between 1-100%');
+    }
+
+    if (authority) {
+      try {
+        new PublicKey(authority);
+      } catch (error) {
+        errors.push('Invalid authority address format');
+      }
+    }
+
+    // Return all validation errors at once
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: errors
+      });
+    }
+
+    // Create DAO
+    console.log('Creating DAO with validated parameters...');
     const result = await solanaClient.createDAO({
       name: name.trim(),
       communityMint,
-      councilMint,
       votingThreshold: Number(votingThreshold),
-      maxVotingTime: maxVotingTime ? Number(maxVotingTime) : 3 * 24 * 60 * 60,
-      holdUpTime: holdUpTime ? Number(holdUpTime) : 24 * 60 * 60,
-      authority
+      maxVotingTime: maxVotingTime ? Number(maxVotingTime) : undefined,
+      holdUpTime: holdUpTime ? Number(holdUpTime) : undefined,
+      authority: authority || undefined
     });
 
+    console.log('DAO created successfully:', {
+      name: result.name,
+      realmAddress: result.realmAddress,
+      txId: result.txId
+    });
+
+    // Return success response
     res.json({
       success: true,
-      daoAddress: result.address,
-      signature: result.signature,
-      explorerUrl: result.explorerUrl
+      realmAddress: result.realmAddress,
+      txId: result.txId,
+      explorerUrl: result.explorerUrl,
+      name: result.name
     });
 
   } catch (error) {
-    console.error('DAO Creation Error:', error);
-    res.status(500).json({
+    console.error('DAO Creation Error:', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    // Determine if it's a client error or server error
+    const status = error.message.includes('Invalid') ? 400 : 500;
+    
+    res.status(status).json({
       success: false,
       error: error.message,
-      details: error.details
+      details: error.details || undefined
     });
   }
 });

@@ -4,20 +4,27 @@
   "description": "Backend service for Solana node-based development platform",
   "main": "src/index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "require": "./src/index.js"
+    }
+  },
   "scripts": {
     "build-frontend": "cd ../frontend && npm install && npm run build",
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node --experimental-specifier-resolution=node src/index.js",
+    "dev": "nodemon --experimental-specifier-resolution=node src/index.js",
     "start-validator": "./scripts/start-validator.sh",
     "stop-validator": "./scripts/stop-validator.sh",
     "test": "jest",
     "generate-key": "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
   },
   "dependencies": {
-    "@solana/spl-governance": "^0.3.28",
-    "@solana/spl-token": "^0.4.12",
-    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-governance": "0.3.25",
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.87.6",
     "axios": "^1.6.2",
+    "bn.js": "^5.2.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -29,6 +36,6 @@
     "nodemon": "^3.1.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=16.0.0"
   }
 }

@@ -82,35 +82,56 @@ export default function TokenNode({ id, data }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCreateToken = async () => {
-    if (!connected) {
-      alert('Please connect your wallet first');
-      return;
-    }
+  const validateForm = () => {
+    const fields = ['symbol', 'decimals', 'initialSupply'];
+    let isValid = true;
 
+    fields.forEach((field) => {
+      const value = data[field];
+      if (!validateField(field, value)) {
+        isValid = false;
+      }
+    });
+
+    return isValid;
+  };
+
+  const handleCreateToken = async () => {
+    if (!validateForm()) return;
+    
     try {
-      setIsCreating(true);
-      const result = await createToken({
-        name: data.name,
-        symbol: data.symbol,
-        decimals: data.decimals,
-        mintAuthority: data.mintAuthority,
-        initialSupply: data.initialSupply
+      const response = await fetch('/api/solana/create-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
-      
-      // Update node with token address
-      updateNodeData({ 
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create token');
+      }
+
+      // Update node data with the mint address and transaction info
+      updateNodeData({
         ...data,
-        tokenAddress: result.token.mint,
-        txId: result.token.txId,
-        explorerUrl: result.token.explorerUrl
+        mint: result.token.mint,
+        txSignature: result.token.txId,
+        explorerUrl: result.token.explorerUrl,
+        status: 'created'
       });
-      
+
+      // Notify parent of the update
+      updateNodeData({
+        ...data,
+        mint: result.token.mint,
+        txSignature: result.token.txId,
+        explorerUrl: result.token.explorerUrl,
+        status: 'created'
+      });
+
     } catch (error) {
-      console.error('Token creation error:', error);
+      console.error('Token Creation Error:', error);
       alert(`Failed to create token: ${error.message}`);
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -218,22 +239,22 @@ export default function TokenNode({ id, data }) {
         <div className="node-actions">
           <button
             className="create-button"
-            disabled={!connected || isCreating || Object.keys(errors).length > 0}
+            disabled={!connected || Object.keys(errors).length > 0}
             onClick={handleCreateToken}
           >
-            {isCreating ? 'Creating...' : 'Create Token'}
+            Create Token
           </button>
         </div>
 
-        {data.tokenAddress && (
+        {data.mint && (
           <div className="token-info">
             <div className="address-container">
               <span>Mint Address: </span>
               <span 
                 className="truncated-address" 
-                title={data.tokenAddress}
+                title={data.mint}
               >
-                {`${data.tokenAddress.slice(0, 4)}...${data.tokenAddress.slice(-4)}`}
+                {`${data.mint.slice(0, 4)}...${data.mint.slice(-4)}`}
               </span>
             </div>
             <a 
@@ -249,7 +270,7 @@ export default function TokenNode({ id, data }) {
       </div>
 
       {/* Fixed position output handle */}
-      {data.tokenAddress && (
+      {data.mint && (
         <Handle
           type="source"
           position="right"
@@ -269,7 +290,7 @@ export default function TokenNode({ id, data }) {
             cursor: 'pointer'
           }}
         >
-          <div style={{ display: 'none' }} data-mintaddress={data.tokenAddress} />
+          <div style={{ display: 'none' }} data-mintaddress={data.mint} />
         </Handle>
       )}
 

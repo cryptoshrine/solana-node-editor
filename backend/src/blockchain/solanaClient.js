@@ -1,22 +1,12 @@
-import { 
-  Connection, Keypair, LAMPORTS_PER_SOL, 
-  SystemProgram, Transaction, PublicKey 
-} from '@solana/web3.js';
-
-import governance from '@solana/spl-governance';
-const {
-  createRealm,
-  getTokenOwnerRecordAddress,
-  GoverningTokenConfigAccountArgs,
-  GoverningTokenType,
-  MintMaxVoteWeightSource,
-  VoteThresholdPercentage,
-  VoteTipping,
-  withCreateRealm,
-  PROGRAM_VERSION,
-  PROGRAM_ID: GOVERNANCE_PROGRAM_ID,
-  createTokenOwnerRecord
-} = governance;
+import pkg from '@solana/web3.js';
+const { 
+  Connection, 
+  Keypair, 
+  LAMPORTS_PER_SOL, 
+  SystemProgram, 
+  Transaction, 
+  PublicKey 
+} = pkg;
 
 import { 
   createInitializeMintInstruction, 
@@ -27,12 +17,25 @@ import {
   MINT_SIZE 
 } from '@solana/spl-token';
 
+// Import SPL Governance as a CommonJS module
+import splGovPkg from '@solana/spl-governance';
+const {
+  createCreateRealmInstruction,
+  PROGRAM_VERSION_V2,
+  MintMaxVoteWeightSource,
+  VoteTipping,
+  GOVERNANCE_PROGRAM_ID,
+  getTokenOwnerRecordAddress,
+  getRealmConfigAddress,
+  createSetRealmAuthorityInstruction
+} = splGovPkg;
+
+import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import os from 'os';
-import BN from 'bn.js';
 
 // Configure environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -310,80 +313,134 @@ class SolanaClient {
     );
   }
 
-  async createDAO({
-    name,
-    communityMint,
-    councilMint,
-    votingThreshold,
-    maxVotingTime,
-    holdUpTime,
-    authority
-  }) {
+  async createDAO(params) {
     try {
+      const { 
+        name, 
+        communityMint, 
+        votingThreshold,
+        maxVotingTime = 3 * 24 * 60 * 60, // 3 days default
+        holdUpTime = 24 * 60 * 60 // 1 day default
+      } = params;
+
       // Validate inputs
-      if (!name || !communityMint || !votingThreshold) {
-        throw new Error('Missing required parameters for DAO creation');
+      if (!name?.trim()) {
+        throw new Error('DAO name is required');
+      }
+      if (!communityMint) {
+        throw new Error('Community mint address is required');
+      }
+      if (!votingThreshold || votingThreshold < 1 || votingThreshold > 100) {
+        throw new Error('Voting threshold must be between 1-100%');
       }
 
-      // Validate communityMint address format
-      if (!communityMint.startsWith('S') || communityMint.length !== 44) {
-        throw new Error(`Invalid mint address format: ${communityMint}`);
+      // Convert addresses to PublicKeys with validation
+      let communityMintPubkey;
+      try {
+        communityMintPubkey = new PublicKey(communityMint);
+      } catch (error) {
+        throw new Error(`Invalid community mint address: ${error.message}`);
       }
 
-      // Create safe public key for communityMint and check if it's on the ed25519 curve
-      const communityMintPubkey = new PublicKey(communityMint);
-      if (!PublicKey.isOnCurve(communityMintPubkey.toBuffer())) {
-        throw new Error('Mint address is not on ed25519 curve');
-      }
+      // Create the realm keypair
+      const realmKeypair = Keypair.generate();
+      console.log('Created realm keypair:', realmKeypair.publicKey.toBase58());
 
-      // Create transaction for realm creation
-      const realmAuthority = new PublicKey(authority);
-      const councilMintPubkey = councilMint ? new PublicKey(councilMint) : null;
-
-      // Configure realm settings
+      // Create governance config
       const realmConfig = {
-        communityMintMaxVoteWeightSource: { type: 0, value: 1 }, // 1 token = 1 vote
-        minCommunityTokensToCreateGovernance: new BN(1), // Minimum 1 token to create governance
-        useCommunityVoterWeightAddin: false,
-        useMaxCommunityVoterWeightAddin: false
+        communityMintMaxVoteWeightSource: MintMaxVoteWeightSource.FULL_SUPPLY_FRACTION,
+        minCommunityTokensToCreateGovernance: new BN(1),
+        communityVotingThreshold: new BN(votingThreshold * 100), // Convert to basis points
+        communityVetoVoteThreshold: new BN(0),
+        communityVoteTipping: VoteTipping.Strict,
+        councilVoteTipping: VoteTipping.Strict,
+        minCouncilTokensToCreateGovernance: new BN(1),
+        councilVotingThreshold: new BN(0),
+        councilVetoVoteThreshold: new BN(0),
+        communityVotingPeriod: new BN(maxVotingTime),
+        councilVotingPeriod: new BN(maxVotingTime),
+        votingCoolOffTime: new BN(holdUpTime),
+        depositExemptProposalCount: 10
       };
 
-      // Create the realm
-      const realmAddress = await createRealm(
-        this.connection,
-        realmAuthority,
-        communityMintPubkey,
-        this.payer.publicKey,
-        name,
-        votingThreshold / 100, // Convert percentage to decimal
-        realmConfig,
-        councilMintPubkey,
-        PROGRAM_VERSION,
-        maxVotingTime,
-        holdUpTime
+      // Create the transaction
+      const transaction = new Transaction();
+
+      // Get realm config address
+      const realmConfigAddress = await getRealmConfigAddress(
+        GOVERNANCE_PROGRAM_ID,
+        realmKeypair.publicKey
       );
 
-      // Create token owner record for the realm creator
-      await createTokenOwnerRecord(
-        this.connection,
-        this.payer,
-        realmAddress,
-        communityMintPubkey,
-        realmAuthority
+      // Create realm instruction
+      const createRealmIx = createCreateRealmInstruction(
+        {
+          realm: realmKeypair.publicKey,
+          realmAuthority: this.payer.publicKey,
+          communityMint: communityMintPubkey,
+          payer: this.payer.publicKey,
+          realmConfig: realmConfigAddress,
+          governanceProgram: GOVERNANCE_PROGRAM_ID
+        },
+        {
+          name: name.trim(),
+          configArgs: {
+            useCouncilMint: false,
+            communityMintMaxVoteWeightSource: realmConfig.communityMintMaxVoteWeightSource,
+            minCommunityTokensToCreateGovernance: realmConfig.minCommunityTokensToCreateGovernance,
+            communityVotingThreshold: realmConfig.communityVotingThreshold,
+            communityVetoVoteThreshold: realmConfig.communityVetoVoteThreshold,
+            communityVoteTipping: realmConfig.communityVoteTipping,
+            councilVoteTipping: realmConfig.councilVoteTipping,
+            minCouncilTokensToCreateGovernance: realmConfig.minCouncilTokensToCreateGovernance,
+            councilVotingThreshold: realmConfig.councilVotingThreshold,
+            councilVetoVoteThreshold: realmConfig.councilVetoVoteThreshold,
+            communityVotingPeriod: realmConfig.communityVotingPeriod,
+            councilVotingPeriod: realmConfig.councilVotingPeriod,
+            votingCoolOffTime: realmConfig.votingCoolOffTime,
+            depositExemptProposalCount: realmConfig.depositExemptProposalCount
+          }
+        }
       );
 
-      // Return creation details
+      transaction.add(createRealmIx);
+
+      // Get token owner record
+      const tokenOwnerRecordAddress = await getTokenOwnerRecordAddress(
+        GOVERNANCE_PROGRAM_ID,
+        realmKeypair.publicKey,
+        communityMintPubkey,
+        this.payer.publicKey
+      );
+
+      // Set realm authority instruction
+      const setAuthorityIx = createSetRealmAuthorityInstruction({
+        programId: GOVERNANCE_PROGRAM_ID,
+        realmAuthority: this.payer.publicKey,
+        realm: realmKeypair.publicKey,
+        newRealmAuthority: this.payer.publicKey,
+        tokenOwnerRecord: tokenOwnerRecordAddress
+      });
+
+      transaction.add(setAuthorityIx);
+
+      console.log('Sending DAO creation transaction...');
+      const signature = await this.sendTransaction(transaction, [realmKeypair]);
+      console.log('DAO creation transaction sent:', signature);
+
       return {
-        address: realmAddress.toBase58(),
-        name,
-        communityMint,
-        councilMint: councilMint || null,
-        authority: realmAuthority.toBase58(),
-        explorerUrl: `${this.explorerUrl}/address/${realmAddress.toBase58()}`
+        name: name.trim(),
+        realmAddress: realmKeypair.publicKey.toBase58(),
+        communityMint: communityMintPubkey.toBase58(),
+        txId: signature,
+        explorerUrl: `${this.explorerUrl}/tx/${signature}`
       };
 
     } catch (error) {
-      console.error('DAO Creation Error:', error);
+      console.error('DAO Creation Error:', {
+        error: error.message,
+        stack: error.stack
+      });
       throw new Error(`DAO creation failed: ${error.message}`);
     }
   }

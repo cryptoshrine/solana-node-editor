@@ -115,21 +115,44 @@
   border-color: #ff4444;
 }
 
+/* Connection state visualization */
 .dao-node .mint-address {
   background: rgba(0, 0, 0, 0.2);
-  padding: 8px;
+  padding: 12px;
   border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
 }
 
-.dao-node .mint-address label {
-  display: block;
-  font-size: 0.9em;
-  margin-bottom: 4px;
+.dao-node .mint-address.connected {
+  border-color: #14F195;
+  background: rgba(20, 241, 149, 0.1);
+}
+
+.dao-node .mint-address.connected::before {
+  content: "✓";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #14F195;
+  font-weight: bold;
 }
 
 .dao-node .mint-address .address {
   font-family: monospace;
   font-size: 0.9em;
+  display: block;
+  margin-top: 4px;
+  word-break: break-all;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.dao-node .mint-address.connected .address {
+  background: rgba(20, 241, 149, 0.1);
 }
 
 .dao-node .voting-params {
