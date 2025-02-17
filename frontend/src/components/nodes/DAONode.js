@@ -230,19 +230,36 @@ const DAONodeContent = ({ id, data, onNodeDataChange }) => {
   };
 
   const handleCreateDAO = useCallback(async () => {
+    console.log('Starting DAO creation process...', {
+      nodeData,
+      connected,
+      publicKey: publicKey?.toString()
+    });
+
     if (!validateForm()) {
+      console.log('Form validation failed', { errors });
       return;
     }
     
     if (!connected || !publicKey) {
+      console.log('Wallet not connected', { connected, publicKey });
       toast.error('Please connect your wallet first');
       return;
     }
 
     const toastId = toast.loading('Creating DAO...');
+    console.log('Preparing DAO creation request...', {
+      name: nodeData.name,
+      communityMint: nodeData.communityMint,
+      votingThreshold: nodeData.votingThreshold,
+      maxVotingTime: nodeData.maxVotingTime,
+      holdUpTime: nodeData.holdUpTime,
+      authority: publicKey.toString()
+    });
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+      console.log('Sending request to:', `${apiUrl}/api/solana/create-dao`);
       
       const response = await fetch(`${apiUrl}/api/solana/create-dao`, {
         method: 'POST',
@@ -259,25 +276,51 @@ const DAONodeContent = ({ id, data, onNodeDataChange }) => {
         }),
       });
 
+      console.log('Received response:', {
+        status: response.status,
+        ok: response.ok,
+      });
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        console.error('DAO creation failed:', errorData);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
       }
 
       const result = await response.json();
+      console.log('DAO creation successful:', result);
       
-      updateNodeData({
+      // Update node data with success status and DAO information
+      const updatedData = {
+        ...nodeData,
         address: result.address,
         status: 'active',
-        explorerUrl: result.explorerUrl
-      });
+        explorerUrl: result.explorerUrl,
+        name: result.name
+      };
+      console.log('Updating node data with:', updatedData);
+      
+      // Update local state
+      setNodeData(updatedData);
+
+      // Notify parent component of changes
+      if (onNodeDataChange) {
+        console.log('Notifying parent of node data change');
+        onNodeDataChange(id, updatedData);
+      }
 
       toast.success('DAO created successfully!', { id: toastId });
       
     } catch (error) {
-      console.error('DAO Creation Error:', error);
+      console.error('DAO Creation Error:', {
+        error,
+        message: error.message,
+        stack: error.stack,
+        nodeData
+      });
       toast.error(`Failed to create DAO: ${error.message}`, { id: toastId });
     }
-  }, [nodeData, connected, publicKey, updateNodeData]);
+  }, [nodeData, connected, publicKey, onNodeDataChange, id, validateForm]);
 
   const handleCreateProposal = useCallback(async () => {
     if (!connected || !publicKey) {
@@ -438,63 +481,97 @@ const DAONodeContent = ({ id, data, onNodeDataChange }) => {
         </div>
         
         <div className="dao-form">
-          <div className="input-group">
-            <label htmlFor="daoName">DAO Name</label>
-            <input
-              id="daoName"
-              type="text"
-              placeholder="Enter DAO name"
-              value={nodeData.name || ''}
-              onChange={(e) => updateNodeData({ name: e.target.value })}
-              disabled={nodeData.status === 'active'}
-            />
-          </div>
-          
-          <div className="input-group">
-            <label htmlFor="votingThreshold">Voting Threshold (%)</label>
-            <input
-              id="votingThreshold"
-              type="number"
-              placeholder="Enter threshold (1-100)"
-              value={nodeData.votingThreshold || ''}
-              onChange={(e) => updateNodeData({ 
-                votingThreshold: parseInt(e.target.value) 
-              })}
-              min="1"
-              max="100"
-              disabled={nodeData.status === 'active'}
-            />
-          </div>
+          {nodeData.status === 'active' ? (
+            <>
+              <div className="field">
+                <label>DAO Name</label>
+                <div className="field-value">{nodeData.name}</div>
+              </div>
+              <div className="field">
+                <label>Voting Threshold</label>
+                <div className="field-value">{nodeData.votingThreshold}%</div>
+              </div>
+              <div className="field">
+                <label>Community Token</label>
+                <div className="field-value">{nodeData.communityMint}</div>
+              </div>
+              <div className="field">
+                <label>DAO Address</label>
+                <div className="field-value">
+                  {nodeData.address}
+                  <button 
+                    className="copy-button"
+                    onClick={() => {
+                      if (nodeData.address) {
+                        navigator.clipboard.writeText(nodeData.address);
+                        toast.success('Address copied to clipboard!');
+                      }
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              {nodeData.explorerUrl && (
+                <div className="explorer-link">
+                  <a href={nodeData.explorerUrl} target="_blank" rel="noopener noreferrer">
+                    View on Explorer
+                  </a>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="input-group">
+                <label htmlFor="daoName">DAO Name</label>
+                <input
+                  id="daoName"
+                  type="text"
+                  placeholder="Enter DAO name"
+                  value={nodeData.name || ''}
+                  onChange={(e) => updateNodeData({ name: e.target.value })}
+                  disabled={nodeData.status === 'active'}
+                />
+              </div>
+              
+              <div className="input-group">
+                <label htmlFor="votingThreshold">Voting Threshold (%)</label>
+                <input
+                  id="votingThreshold"
+                  type="number"
+                  placeholder="Enter threshold (1-100)"
+                  value={nodeData.votingThreshold || ''}
+                  onChange={(e) => updateNodeData({ 
+                    votingThreshold: parseInt(e.target.value) 
+                  })}
+                  min="1"
+                  max="100"
+                  disabled={nodeData.status === 'active'}
+                />
+              </div>
 
-          {nodeData.communityMint && nodeData.communityMint !== '[TOKEN_MINT_ADDRESS]' && (
-            <div className="mint-address connected">
-              <label>Community Token</label>
-              <span className="address">{nodeData.communityMint}</span>
-            </div>
-          )}
-          
-          {nodeData.status === 'pending' && (
-            <button 
-              className="create-dao-btn"
-              onClick={handleCreateDAO}
-              disabled={!connected || !nodeData.communityMint || nodeData.communityMint === '[TOKEN_MINT_ADDRESS]'}
-            >
-              {!connected ? 'Connect Wallet' : 'Create DAO'}
-            </button>
+              {nodeData.communityMint && nodeData.communityMint !== '[TOKEN_MINT_ADDRESS]' && (
+                <div className="mint-address connected">
+                  <label>Community Token</label>
+                  <span className="address">{nodeData.communityMint}</span>
+                </div>
+              )}
+              
+              {nodeData.status === 'pending' && (
+                <button 
+                  className="create-dao-btn"
+                  onClick={handleCreateDAO}
+                  disabled={!connected || !nodeData.communityMint || nodeData.communityMint === '[TOKEN_MINT_ADDRESS]'}
+                >
+                  {!connected ? 'Connect Wallet' : 'Create DAO'}
+                </button>
+              )}
+            </>
           )}
         </div>
 
         {nodeData.status === 'active' && (
           <div className="dao-info">
-            <div className="info-row">
-              <span className="info-label">DAO Address</span>
-              <span className="info-value">{nodeData.address}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Token</span>
-              <span className="info-value">{nodeData.communityMint}</span>
-            </div>
-            
             <div className="proposals-section">
               <h4>Proposals</h4>
               
