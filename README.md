@@ -34,7 +34,7 @@ The Solana Node Editor is built using a microservices architecture, with the fol
 * **Key Management Service**: A Node.js-based service for secure key management
 
 <p align="center">
-  <img src="img/Architecture__.png" width="500">
+  <img src="img/Architecture__.png" width="1000">
 </p>
 
 
@@ -66,7 +66,7 @@ This example demonstrates how to use the NFT Node to create an NFT and mint it t
 Transform English instructions into executable Solana programs with our AI-powered workflow generator:
 
 <p align="center">
-  <img src="img/natural_lang_1.png" width="500">
+  <img src="img/natural_lang_1.png" width="800">
 </p>
 
 
@@ -83,7 +83,7 @@ Transform English instructions into executable Solana programs with our AI-power
 
 **Workflow**:
 <p align="center">
-  <img src="img/community_token_launch.png" width="500">
+  <img src="img/community_token_launch.png" width="800">
 </p>
 
 
@@ -110,7 +110,7 @@ fn airdrop(ctx: Context<Airdrop>, amount: u64) -> Result<()> {
 
 **Workflow**:
 <p align="center">
-  <img src="img/NFT_Launch.png" width="500">
+  <img src="img/NFT_Launch.png" width="800">
 </p>
 
 ### Example 3: DAO Governance
@@ -126,7 +126,7 @@ fn airdrop(ctx: Context<Airdrop>, amount: u64) -> Result<()> {
 
 **Workflow**:
 <p align="center">
-  <img src="img/DAO_Governance.png" width="500">
+  <img src="img/DAO_Governance.png" width="800">
 </p>
 
 **Benefits**:
