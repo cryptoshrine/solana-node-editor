@@ -1,0 +1,10 @@
+[build]
+rustflags = [
+    "-C", "link-arg=-zstack-size=65536",
+    "-C", "target-cpu=native",
+]
+
+[target.bpfel-unknown-unknown]
+rustflags = [
+    "-C", "link-arg=-zstack-size=65536",
+] 
