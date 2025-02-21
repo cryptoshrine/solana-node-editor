@@ -35,11 +35,11 @@ export class TokenService {
       );
       console.log('Token mint created:', mintPubkey.toBase58());
 
-      // 2. Create metadata (if name, symbol, and uri provided)
+      // 2. Create metadata (name and symbol are required, uri is optional)
       let metadataAddress = null;
       let metadataSignature = null;
       
-      if (name && symbol && uri) {
+      if (name && symbol) {  // Changed condition: only name and symbol required
         console.log('Creating token metadata...');
         const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
         
@@ -53,9 +53,9 @@ export class TokenService {
         );
 
         const metadataData = {
-          name,
+          name: `${name} (${symbol})`,  // Format: TOKEN NAME (SYMBOL)
           symbol,
-          uri,
+          uri: uri || '',  // Use empty string if uri not provided
           sellerFeeBasisPoints: 0,
           creators: null,
           collection: null,
@@ -89,10 +89,11 @@ export class TokenService {
         metadataAddress = metadataPDA.toBase58();
         console.log('Metadata created successfully:', {
           address: metadataAddress,
-          signature: metadataSignature
+          signature: metadataSignature,
+          data: metadataData  // Log the actual metadata being set
         });
       } else {
-        console.log('Skipping metadata creation (missing name, symbol, or uri)');
+        console.log('Skipping metadata creation (missing name or symbol)');
       }
 
       // 3. Create ATA and mint initial supply if specified
