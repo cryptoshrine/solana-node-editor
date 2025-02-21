@@ -61,3 +61,5 @@ validator-ledger/rocksdb/
 
 validator-ledger/rocksdb/*
 validator-ledger/*.log
+
+.cursorrules.md

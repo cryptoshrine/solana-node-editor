@@ -1,39 +1,26 @@
 import { execSync } from 'child_process';
 import { Connection } from '@solana/web3.js';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 export default class ValidatorManager {
   constructor() {
-    this.connection = new Connection('http://localhost:8899', 'confirmed');
+    this.connection = new Connection(process.env.RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
     this.validatorProcess = null;
   }
 
   start() {
-    try {
-      if (this.isRunning()) {
-        console.log('Validator already running');
-        return true;
-      }
-
-      this.validatorProcess = execSync(
-        'solana-test-validator --reset --ledger test-ledger --quiet > validator.log 2>&1 &'
-      );
-      console.log('Local validator started');
-      return true;
-    } catch (error) {
-      console.error('Validator startup failed:', error);
-      return false;
-    }
+    // We're using devnet, so no need to start a local validator
+    console.log('Using Solana devnet - no local validator needed');
+    return true;
   }
 
   stop() {
-    try {
-      execSync('pkill -f solana-test-validator');
-      console.log('Validator stopped');
-      return true;
-    } catch (error) {
-      console.error('Error stopping validator:', error);
-      return false;
-    }
+    // No local validator to stop when using devnet
+    console.log('Using Solana devnet - no local validator to stop');
+    return true;
   }
 
   async isRunning() {
@@ -48,8 +35,8 @@ export default class ValidatorManager {
   async getStatus() {
     return {
       isRunning: await this.isRunning(),
-      blockHeight: await this.connection.getBlockHeight(),
-      slot: await this.connection.getSlot()
+      network: process.env.SOLANA_NETWORK || 'devnet',
+      rpcUrl: this.connection.rpcEndpoint
     };
   }
 }

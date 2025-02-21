@@ -49,7 +49,7 @@ export class CustomDaoClient {
         name: daoAccount.name,
         authority: daoAccount.authority.toString(),
         communityToken: daoAccount.communityToken.toString(),
-        votingThreshold: daoAccount.config.votingThreshold.toNumber(),
+        votingThreshold: daoAccount.config.votingThreshold,
         maxVotingTime: daoAccount.config.maxVotingTime.toString(),
         holdUpTime: daoAccount.config.holdUpTime.toString(),
         proposalCount: daoAccount.proposalCount.toString(),

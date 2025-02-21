@@ -1,11 +1,20 @@
 import { useCallback } from 'react';
 import { useConnection, useWallet as useWalletAdapter } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, clusterApiUrl } from '@solana/web3.js';
 import axios from 'axios';
 
-export default function useWallet() {
+const NETWORK = process.env.REACT_APP_SOLANA_NETWORK || 'devnet';
+const ENDPOINT = process.env.REACT_APP_RPC_ENDPOINT || clusterApiUrl(NETWORK);
+
+export const useWallet = () => {
   const { connection } = useConnection();
   const { publicKey, wallet, sendTransaction, connect, disconnect } = useWalletAdapter();
+
+  const getNetworkConfig = () => ({
+    network: NETWORK,
+    endpoint: ENDPOINT,
+    tokenMetadataProgramId: process.env.REACT_APP_TOKEN_METADATA_PROGRAM_ID
+  });
 
   // New: API call to backend for complex transactions
   const sendTransactionToBackend = useCallback(async (transactionType, params) => {
@@ -69,6 +78,11 @@ export default function useWallet() {
     isConnected: !!publicKey,
     shortAddress: publicKey 
       ? `${publicKey.toBase58().slice(0,4)}...${publicKey.toBase58().slice(-4)}`
-      : null
+      : null,
+    getNetworkConfig,
+    network: NETWORK,
+    endpoint: ENDPOINT
   };
-}
+};
+
+export default useWallet;

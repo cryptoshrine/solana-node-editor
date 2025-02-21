@@ -5,16 +5,37 @@ export default function useAIAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Helper function to minimize node data
+  const minimizeNodeData = (node) => {
+    const { id, type, data } = node;
+    return {
+      id,
+      type,
+      data: {
+        ...data,
+        // Remove any large or unnecessary fields
+        __reactFlow: undefined,
+        __temp: undefined,
+        // Keep only essential metadata
+        label: data.label
+      }
+    };
+  };
+
   const sendQuery = async (query, nodes = []) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log('Sending query:', { query, nodes }); // Debug log
+      console.log('Preparing query data...'); // Debug log
+      
+      // Minimize the node data before sending
+      const minimizedNodes = nodes.map(minimizeNodeData);
+      console.log('Minimized nodes:', minimizedNodes); // Debug log
       
       const response = await axios.post('/api/ai/generate', {
         prompt: query,
-        nodes
+        nodes: minimizedNodes
       });
 
       console.log('Raw API response:', response.data); // Debug log

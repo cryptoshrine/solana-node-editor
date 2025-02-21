@@ -1,0 +1,100 @@
+.token-node .field-value {
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  border: none;
+  padding: 12px;
+  margin: 8px 0;
+  width: 100%;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.token-node .field-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.token-node .token-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.token-node .truncated-address {
+  cursor: pointer;
+  color: #14F195;
+  transition: opacity 0.2s;
+}
+
+.token-node .truncated-address:hover {
+  opacity: 0.8;
+}
+
+.token-node .truncated-address.copied {
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.mint-info {
+  margin-top: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.mint-address {
+  padding: 4px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.mint-address:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.token-details {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.token-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.token-detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.detail-value {
+  color: white;
+  font-size: 14px;
+}
+
+.mint-address {
+  color: #14F195;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.mint-address:hover {
+  opacity: 0.8;
+} 

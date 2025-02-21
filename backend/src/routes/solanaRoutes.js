@@ -1,9 +1,13 @@
 // backend/src/routes/solanaRoutes.js
+
 import { Router } from 'express';
 import { solanaClient } from '../blockchain/solanaClient.js';
 import { PublicKey } from '@solana/web3.js';
+import { TokenService } from '../services/token.js';
+import { wallet } from '../services/wallet.js';
 
 const router = Router();
+const tokenService = new TokenService(solanaClient.connection);
 
 // Enable CORS preflight for all routes
 router.options('*', (req, res) => {
@@ -46,13 +50,13 @@ router.post('/mint-nft', async (req, res) => {
 // Token Creation Endpoint
 router.post('/create-token', async (req, res) => {
   try {
-    const { name, symbol, decimals, mintAuthority, initialSupply } = req.body;
+    const { name, symbol, decimals, initialSupply, uri } = req.body;
     console.log('Received token creation request:', {
       name,
       symbol,
       decimals,
-      mintAuthority,
-      initialSupply
+      initialSupply,
+      uri
     });
     
     // Validate required fields
@@ -64,40 +68,58 @@ router.post('/create-token', async (req, res) => {
       });
     }
 
+    // Validate symbol format
+    if (!symbol || symbol.length < 2 || symbol.length > 5) {
+      return res.status(400).json({
+        success: false,
+        error: 'Symbol must be 2-5 characters'
+      });
+    }
+
+    // Validate decimals
+    if (typeof decimals !== 'number' || decimals < 0 || decimals > 9) {
+      return res.status(400).json({
+        success: false,
+        error: 'Decimals must be 0-9'
+      });
+    }
+
     // Validate initial supply if provided
-    if (typeof initialSupply !== 'undefined') {
-      if (typeof initialSupply !== 'number' || 
-          initialSupply <= 0 ||
-          initialSupply > 1000000000 ||
-          !Number.isInteger(initialSupply)) {
-        console.error('Invalid initial supply:', initialSupply);
+    if (initialSupply !== undefined) {
+      if (
+        typeof initialSupply !== 'number' ||
+        initialSupply <= 0 ||
+        initialSupply > 1000000000 ||
+        !Number.isInteger(initialSupply)
+      ) {
         return res.status(400).json({
           success: false,
-          error: 'Invalid supply: Must be integer 1-1,000,000,000'
+          error: 'Initial supply must be integer 1-1,000,000,000'
         });
       }
     }
 
-    console.log('Creating token with solanaClient...');
-    const result = await solanaClient.createToken({
+    // Create token with metadata
+    const result = await tokenService.createTokenWithMetadata({
+      payer: wallet,
       name: name.trim(),
       symbol: symbol.trim().toUpperCase(),
-      decimals: Number(decimals),
-      mintAuthority: mintAuthority?.trim(),
-      initialSupply: initialSupply ? Number(initialSupply) : undefined
+      decimals,
+      initialSupply,
+      uri: uri || ''
     });
 
     console.log('Token created successfully:', result);
     res.json({
       success: true,
       token: {
-        name: result.name,
-        symbol: result.symbol,
-        decimals: result.decimals,
+        name,
+        symbol: symbol.toUpperCase(),
+        decimals,
         mint: result.mint,
-        txId: result.txId,
-        explorerUrl: result.explorerUrl,
-        ...(initialSupply && { initialSupply: result.initialSupply })
+        metadataAddress: result.metadataAddress,
+        metadataSignature: result.metadataSignature,
+        initialSupply
       }
     });
   } catch (error) {
@@ -105,13 +127,7 @@ router.post('/create-token', async (req, res) => {
     console.error('Error details:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message,
-      details: {
-        requiredFields: ['name', 'symbol', 'decimals'],
-        symbolRules: '2-5 uppercase characters',
-        decimalsRange: '0-9',
-        ...(error.details?.supply && { supplyRules: '1-1,000,000,000' })
-      }
+      error: error.message
     });
   }
 });
@@ -119,13 +135,13 @@ router.post('/create-token', async (req, res) => {
 // DAO Creation Endpoint
 router.post('/create-dao', async (req, res) => {
   try {
-    const { 
-      name, 
-      communityMint, 
+    const {
+      name,
+      communityMint,
       votingThreshold,
       maxVotingTime,
       holdUpTime,
-      authority 
+      authority
     } = req.body;
 
     console.log('Received DAO creation request:', {
@@ -139,11 +155,11 @@ router.post('/create-dao', async (req, res) => {
 
     // Validate required fields
     const errors = [];
-    
+
     if (!name?.trim()) {
       errors.push('DAO name is required');
     }
-    
+
     if (!communityMint) {
       errors.push('Community token mint is required');
     } else {
@@ -153,12 +169,14 @@ router.post('/create-dao', async (req, res) => {
         errors.push('Invalid community mint address format');
       }
     }
-    
+
     if (!votingThreshold) {
       errors.push('Voting threshold is required');
-    } else if (typeof votingThreshold !== 'number' || 
-               votingThreshold < 1 || 
-               votingThreshold > 100) {
+    } else if (
+      typeof votingThreshold !== 'number' ||
+      votingThreshold < 1 ||
+      votingThreshold > 100
+    ) {
       errors.push('Voting threshold must be between 1-100%');
     }
 
@@ -204,7 +222,6 @@ router.post('/create-dao', async (req, res) => {
       explorerUrl: result.explorerUrl,
       name: result.name
     });
-
   } catch (error) {
     console.error('DAO Creation Error:', {
       error: error.message,
@@ -213,7 +230,7 @@ router.post('/create-dao', async (req, res) => {
 
     // Determine if it's a client error or server error
     const status = error.message.includes('Invalid') ? 400 : 500;
-    
+
     res.status(status).json({
       success: false,
       error: error.message,
@@ -314,7 +331,7 @@ router.get('/dao/:address', async (req, res) => {
       maxVotingTime: result.config.maxVotingTime.toString(),
       holdUpTime: result.config.holdUpTime.toString(),
       proposalCount: result.proposalCount.toString(),
-      totalSupply: result.totalSupply.toString(),
+      totalSupply: result.totalSupply.toString()
     });
   } catch (error) {
     console.error('Get DAO Info Error:', error);
@@ -343,7 +360,7 @@ router.get('/proposal/:address', async (req, res) => {
       againstVotes: result.againstVotes.toString(),
       startTime: result.startTime.toString(),
       endTime: result.endTime.toString(),
-      status: result.status,
+      status: result.status
     });
   } catch (error) {
     console.error('Get Proposal Info Error:', error);
@@ -364,21 +381,23 @@ router.get('/dao/:address/proposals', async (req, res) => {
       {
         memcmp: {
           offset: 8, // After discriminator
-          bytes: address,
-        },
-      },
+          bytes: address
+        }
+      }
     ]);
 
-    res.json(proposals.map(p => ({
-      address: p.publicKey.toString(),
-      creator: p.account.creator.toString(),
-      description: p.account.description,
-      forVotes: p.account.forVotes.toString(),
-      againstVotes: p.account.againstVotes.toString(),
-      startTime: p.account.startTime.toString(),
-      endTime: p.account.endTime.toString(),
-      status: p.account.status,
-    })));
+    res.json(
+      proposals.map((p) => ({
+        address: p.publicKey.toString(),
+        creator: p.account.creator.toString(),
+        description: p.account.description,
+        forVotes: p.account.forVotes.toString(),
+        againstVotes: p.account.againstVotes.toString(),
+        startTime: p.account.startTime.toString(),
+        endTime: p.account.endTime.toString(),
+        status: p.account.status
+      }))
+    );
   } catch (error) {
     console.error('Get Proposals Error:', error);
     res.status(500).json({

@@ -133,6 +133,44 @@ const DAONodeContent = ({ id, data, onNodeDataChange }) => {
     }
   }, [edges, nodes, id, nodeData.status, validateAddress, updateNodeData]);
 
+  // Add token connection validation
+  useEffect(() => {
+    if (!edges?.length) return;
+
+    const tokenConnection = edges.find(edge => 
+        edge.target === id && edge.targetHandle === 'communityMint'
+    );
+
+    if (!tokenConnection) {
+        if (nodeData.communityMint && nodeData.status !== 'active') {
+            updateNodeData({
+                communityMint: '',
+                status: 'pending'
+            });
+        }
+        return;
+    }
+
+    const tokenNode = nodes.find(n => n.id === tokenConnection.source);
+    
+    if (tokenNode?.data?.mint) {
+        try {
+            // Validate mint address
+            new PublicKey(tokenNode.data.mint);
+            
+            if (nodeData.status !== 'active' && 
+                tokenNode.data.mint !== nodeData.communityMint) {
+                updateNodeData({
+                    communityMint: tokenNode.data.mint,
+                    status: 'pending'
+                });
+            }
+        } catch (error) {
+            console.error('Invalid mint address:', error);
+        }
+    }
+  }, [edges, nodes, id, nodeData.status, updateNodeData]);
+
   // Initialize defaults only once on mount
   useEffect(() => {
     if (!nodeData.votingThreshold) {
@@ -230,97 +268,74 @@ const DAONodeContent = ({ id, data, onNodeDataChange }) => {
   };
 
   const handleCreateDAO = useCallback(async () => {
-    console.log('Starting DAO creation process...', {
-      nodeData,
-      connected,
-      publicKey: publicKey?.toString()
+    console.log('Starting DAO creation...', {
+        name: nodeData.name,
+        communityMint: nodeData.communityMint,
+        votingThreshold: nodeData.votingThreshold
     });
 
     if (!validateForm()) {
-      console.log('Form validation failed', { errors });
-      return;
+        console.log('Form validation failed');
+        return;
     }
-    
+
     if (!connected || !publicKey) {
-      console.log('Wallet not connected', { connected, publicKey });
-      toast.error('Please connect your wallet first');
-      return;
+        toast.error('Please connect your wallet first');
+        return;
     }
 
     const toastId = toast.loading('Creating DAO...');
-    console.log('Preparing DAO creation request...', {
-      name: nodeData.name,
-      communityMint: nodeData.communityMint,
-      votingThreshold: nodeData.votingThreshold,
-      maxVotingTime: nodeData.maxVotingTime,
-      holdUpTime: nodeData.holdUpTime,
-      authority: publicKey.toString()
-    });
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      console.log('Sending request to:', `${apiUrl}/api/solana/create-dao`);
-      
-      const response = await fetch(`${apiUrl}/api/solana/create-dao`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: nodeData.name.trim(),
-          communityMint: nodeData.communityMint,
-          votingThreshold: nodeData.votingThreshold,
-          maxVotingTime: nodeData.maxVotingTime,
-          holdUpTime: nodeData.holdUpTime,
-          authority: publicKey.toString()
-        }),
-      });
+        // Validate mint address format
+        new PublicKey(nodeData.communityMint);
 
-      console.log('Received response:', {
-        status: response.status,
-        ok: response.ok,
-      });
+        // Define API URL from environment variable or default
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        console.log('Using API URL:', apiUrl);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('DAO creation failed:', errorData);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
-      }
+        const response = await fetch(`${apiUrl}/api/solana/create-dao`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: nodeData.name.trim(),
+                communityMint: nodeData.communityMint,
+                votingThreshold: nodeData.votingThreshold,
+                maxVotingTime: nodeData.maxVotingTime || 432000, // 5 days default
+                holdUpTime: nodeData.holdUpTime || 86400, // 1 day default
+                authority: publicKey.toString()
+            }),
+        });
 
-      const result = await response.json();
-      console.log('DAO creation successful:', result);
-      
-      // Update node data with success status and DAO information
-      const updatedData = {
-        ...nodeData,
-        address: result.address,
-        status: 'active',
-        explorerUrl: result.explorerUrl,
-        name: result.name
-      };
-      console.log('Updating node data with:', updatedData);
-      
-      // Update local state
-      setNodeData(updatedData);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to create DAO');
+        }
 
-      // Notify parent component of changes
-      if (onNodeDataChange) {
-        console.log('Notifying parent of node data change');
-        onNodeDataChange(id, updatedData);
-      }
+        const result = await response.json();
+        console.log('DAO created successfully:', result);
 
-      toast.success('DAO created successfully!', { id: toastId });
-      
+        updateNodeData({
+            ...nodeData,
+            address: result.address,
+            status: 'active',
+            explorerUrl: result.explorerUrl
+        });
+
+        toast.success('DAO created successfully!', { id: toastId });
+
     } catch (error) {
-      console.error('DAO Creation Error:', {
-        error,
-        message: error.message,
-        stack: error.stack,
-        nodeData
-      });
-      toast.error(`Failed to create DAO: ${error.message}`, { id: toastId });
+        console.error('DAO Creation Error:', {
+            error,
+            nodeData,
+            walletConnected: connected,
+            publicKey: publicKey?.toString()
+        });
+        toast.error(`Failed to create DAO: ${error.message}`, { id: toastId });
     }
-  }, [nodeData, connected, publicKey, onNodeDataChange, id, validateForm]);
+  }, [nodeData, connected, publicKey, validateForm]);
 
   const handleCreateProposal = useCallback(async () => {
     if (!connected || !publicKey) {
@@ -460,6 +475,25 @@ const DAONodeContent = ({ id, data, onNodeDataChange }) => {
       toast.error(`Failed to execute proposal: ${error.message}`, { id: toastId });
     }
   }, [nodeData.address, connected, publicKey]);
+
+  // Add configuration validation
+  const validateConfig = (config) => {
+    const errors = [];
+
+    if (config.votingThreshold < 1 || config.votingThreshold > 100) {
+        errors.push('Voting threshold must be between 1-100%');
+    }
+
+    if (config.maxVotingTime && config.maxVotingTime < 3600) {
+        errors.push('Max voting time must be at least 1 hour');
+    }
+
+    if (config.holdUpTime && config.holdUpTime < 0) {
+        errors.push('Hold up time cannot be negative');
+    }
+
+    return errors;
+  };
 
   return (
     <div className="dao-node" ref={nodeRef}>

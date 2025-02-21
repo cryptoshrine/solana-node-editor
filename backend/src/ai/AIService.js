@@ -1,26 +1,58 @@
 import { OpenAI } from 'openai';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import KnowledgeBase from './KnowledgeBase.js';
 import dotenv from 'dotenv';
 
-// Ensure dotenv is configured
-dotenv.config();
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const PROMPTS_PATH = path.join(process.cwd(), 'src/ai/prompts');
+// Try to load environment variables from multiple possible locations
+const envPaths = [
+  path.resolve(__dirname, '../../.env'),              // backend/.env
+  path.resolve(__dirname, '../../../.env'),           // root/.env
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log('Loaded environment variables from:', envPath);
+    envLoaded = true;
+    break;
+  }
+}
+
+if (!envLoaded) {
+  console.error('No .env file found in:', envPaths);
+}
 
 // Debug environment variables
-console.log('Environment variables:', {
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Present' : 'Missing',
-  NODE_ENV: process.env.NODE_ENV,
-  PWD: process.cwd()
+console.log('AI Service Environment:', {
+  envPaths,
+  hasOpenAIKey: process.env.OPENAI_API_KEY ? 'Present' : 'Missing',
+  currentDir: process.cwd(),
 });
 
 export default class AIService {
   constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Try to get API key from different possible locations
+    const apiKey = process.env.OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY;
+    
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is missing');
+      console.error('Environment loading failed:', {
+        envPaths,
+        loadedEnvVars: Object.keys(process.env).filter(key => key.includes('OPENAI')),
+        currentDir: process.cwd(),
+      });
+      throw new Error('OpenAI API key not found in environment variables');
+    }
+    
+    // Validate API key format
+    if (!this.isValidOpenAIKey(apiKey)) {
+      throw new Error('Invalid OpenAI API key format');
     }
     
     this.openai = new OpenAI({
@@ -30,20 +62,26 @@ export default class AIService {
     
     this.knowledgeBase = new KnowledgeBase();
     
-    // Debug prompt loading
-    const promptPath = path.join(PROMPTS_PATH, 'nodeGeneration.md');
-    console.log('Loading prompt from:', promptPath);
-    
+    // Load prompts with proper error handling
     try {
+      const promptsDir = path.join(__dirname, 'prompts');
       this.prompts = {
-        nodeGeneration: fs.readFileSync(promptPath, 'utf8'),
-        errorResolution: fs.readFileSync(path.join(PROMPTS_PATH, 'errorResolution.md'), 'utf8')
+        nodeGeneration: fs.readFileSync(path.join(promptsDir, 'nodeGeneration.md'), 'utf8'),
+        errorResolution: fs.readFileSync(path.join(promptsDir, 'errorResolution.md'), 'utf8')
       };
-      console.log('Loaded node generation prompt:', this.prompts.nodeGeneration);
+      console.log('Successfully loaded prompts');
     } catch (error) {
       console.error('Error loading prompts:', error);
       throw error;
     }
+  }
+
+  // Helper method to validate OpenAI API key format
+  isValidOpenAIKey(key) {
+    // Check if key matches expected format
+    return typeof key === 'string' && 
+           (key.startsWith('sk-') || key.startsWith('sk-proj-')) &&
+           key.length > 20;
   }
 
   // New helper method for node IDs

@@ -3,110 +3,94 @@ import PropTypes from 'prop-types';
 import { Handle } from 'reactflow';
 import { useNodeData } from '../../hooks/useNodeData';
 import { tokenNodeProps } from '../../propTypes/nodeTypes';
-import { createToken } from '../../api/solana';
 import useWallet from '../../hooks/useWallet';
 import './TokenNode.css';
+import axios from 'axios';
+
+// Helper function to truncate addresses
+const truncateAddress = (address) => {
+  if (!address) return '';
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+};
+
+// Helper function to get explorer URL
+const getExplorerUrl = (address) => {
+  return `https://explorer.solana.com/address/${address}?cluster=devnet`;
+};
 
 export default function TokenNode({ id, data }) {
   const { updateNodeData } = useNodeData(id);
   const [errors, setErrors] = useState({});
   const [isCreating, setIsCreating] = useState(false);
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const nodeRef = useRef(null);
   const [showTooltip, setShowTooltip] = useState(false);
 
-  // Use layout effect to ensure node is properly sized
-  useLayoutEffect(() => {
-    if (nodeRef.current) {
-      let rafId;
-      let lastUpdate = 0;
-      const MIN_UPDATE_DELAY = 100; // Minimum time between updates in ms
-
-      const resizeObserver = new ResizeObserver((entries) => {
-        const now = Date.now();
-        if (now - lastUpdate >= MIN_UPDATE_DELAY) {
-          // Cancel any pending animation frame
-          if (rafId) {
-            window.cancelAnimationFrame(rafId);
-          }
-
-          // Schedule a new update
-          rafId = window.requestAnimationFrame(() => {
-            window.dispatchEvent(new Event('resize'));
-            lastUpdate = now;
-          });
+  const validateField = (field, value) => {
+    let error = null;
+    switch (field) {
+      case 'name':
+        if (!value || value.trim().length === 0) {
+          error = 'Name is required';
         }
-      });
-
-      resizeObserver.observe(nodeRef.current);
-      
-      return () => {
-        if (rafId) {
-          window.cancelAnimationFrame(rafId);
+        break;
+      case 'symbol':
+        if (!value || value.trim().length < 2 || value.trim().length > 5) {
+          error = 'Symbol must be 2-5 characters';
         }
-        resizeObserver.disconnect();
-      };
+        break;
+      case 'decimals':
+        const decimals = parseInt(value);
+        if (isNaN(decimals) || decimals < 0 || decimals > 9) {
+          error = 'Decimals must be 0-9';
+        }
+        break;
+      case 'initialSupply':
+        const supply = parseInt(value);
+        if (isNaN(supply) || supply <= 0 || supply > 1000000000) {
+          error = 'Supply must be 1-1,000,000,000';
+        }
+        break;
+      default:
+        break;
     }
-  }, []);
+    return !error;
+  };
 
-  const validateField = (name, value) => {
-    const newErrors = { ...errors };
-    
-    if (name === 'symbol') {
-      if (!/^[A-Z]{2,5}$/.test(value)) {
-        newErrors.symbol = 'Symbol must be 2-5 uppercase letters';
-      } else {
-        delete newErrors.symbol;
-      }
+  const validateForm = () => {
+    const newErrors = {};
+    if (!validateField('name', data.name)) {
+      newErrors.name = 'Name is required';
     }
-    
-    if (name === 'decimals') {
-      const num = Number(value);
-      if (isNaN(num) || num < 0 || num > 9) {
-        newErrors.decimals = 'Decimals must be between 0-9';
-      } else {
-        delete newErrors.decimals;
-      }
+    if (!validateField('symbol', data.symbol)) {
+      newErrors.symbol = 'Symbol must be 2-5 characters';
     }
-
-    if (name === 'initialSupply') {
-      const num = Number(value);
-      if (isNaN(num) || num <= 0 || num > 1000000000 || !Number.isInteger(num)) {
-        newErrors.initialSupply = 'Supply must be 1-1,000,000,000 whole number';
-      } else {
-        delete newErrors.initialSupply;
-      }
+    if (!validateField('decimals', data.decimals)) {
+      newErrors.decimals = 'Decimals must be 0-9';
     }
-    
+    if (data.initialSupply && !validateField('initialSupply', data.initialSupply)) {
+      newErrors.initialSupply = 'Supply must be 1-1,000,000,000';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateForm = () => {
-    const fields = ['symbol', 'decimals', 'initialSupply'];
-    let isValid = true;
-
-    fields.forEach((field) => {
-      const value = data[field];
-      if (!validateField(field, value)) {
-        isValid = false;
-      }
-    });
-
-    return isValid;
-  };
-
   const handleCreateToken = async () => {
-    if (!validateForm()) return;
+    if (!validateForm() || isCreating) return;
     
     try {
-      const response = await fetch('/api/solana/create-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+      setIsCreating(true);
+      
+      // Create token with metadata
+      const response = await axios.post('/api/solana/create-token', {
+        name: data.name,
+        symbol: data.symbol,
+        decimals: parseInt(data.decimals),
+        initialSupply: data.initialSupply ? parseInt(data.initialSupply) : undefined,
+        uri: data.uri || '',
       });
 
-      const result = await response.json();
+      const result = response.data;
       if (!result.success) {
         throw new Error(result.error || 'Failed to create token');
       }
@@ -115,37 +99,25 @@ export default function TokenNode({ id, data }) {
       updateNodeData({
         ...data,
         mint: result.token.mint,
-        txSignature: result.token.txId,
-        explorerUrl: result.token.explorerUrl,
-        status: 'created'
-      });
-
-      // Notify parent of the update
-      updateNodeData({
-        ...data,
-        mint: result.token.mint,
-        txSignature: result.token.txId,
-        explorerUrl: result.token.explorerUrl,
+        metadataAddress: result.token.metadataAddress,
+        metadataSignature: result.token.metadataSignature,
         status: 'created'
       });
 
     } catch (error) {
-      console.error('Token Creation Error:', error);
+      console.error('Error creating token:', error);
       alert(`Failed to create token: ${error.message}`);
+    } finally {
+      setIsCreating(false);
     }
   };
 
   return (
     <div className="node token-node" ref={nodeRef}>
-      <Handle 
-        type="target" 
-        position="top"
-        isConnectable={true}
-        style={{ cursor: 'pointer' }}
-      />
-      
       <div className="node-header">
-        <h4> {data.name || 'Token Node'}</h4>
+        <h4>🪙 Token Node</h4>
+        <Handle type="target" position="left" />
+        <Handle type="source" position="right" />
       </div>
 
       <div className="node-body">
@@ -154,29 +126,40 @@ export default function TokenNode({ id, data }) {
           <input
             className="field-value"
             value={data.name || ''}
-            onChange={(e) => updateNodeData({ name: e.target.value })}
-            placeholder="Token Name"
+            onChange={(e) => {
+              const value = e.target.value;
+              if (validateField('name', value)) {
+                updateNodeData({ name: value });
+              }
+            }}
+            placeholder="My Token"
           />
+          {errors.name && (
+            <div className="error-message">{errors.name}</div>
+          )}
         </div>
 
         <div className="node-field">
-          <label className="field-label">Symbol ({data.symbol?.length || 0}/5)</label>
+          <label className="field-label">Symbol</label>
           <input
             className="field-value"
             value={data.symbol || ''}
             onChange={(e) => {
               const value = e.target.value.toUpperCase();
-              validateField('symbol', value);
-              updateNodeData({ symbol: value });
+              if (validateField('symbol', value)) {
+                updateNodeData({ symbol: value });
+              }
             }}
-            maxLength="5"
             placeholder="TKN"
+            maxLength={5}
           />
-          {errors.symbol && <div className="error-message">{errors.symbol}</div>}
+          {errors.symbol && (
+            <div className="error-message">{errors.symbol}</div>
+          )}
         </div>
 
         <div className="node-field">
-          <label className="field-label">Decimals (0-9)</label>
+          <label className="field-label">Decimals</label>
           <input
             className="field-value"
             type="number"
@@ -184,13 +167,16 @@ export default function TokenNode({ id, data }) {
             onChange={(e) => {
               const value = e.target.value;
               if (validateField('decimals', value)) {
-                updateNodeData({ decimals: Number(value) });
+                updateNodeData({ decimals: parseInt(value) });
               }
             }}
             min="0"
             max="9"
+            placeholder="9"
           />
-          {errors.decimals && <div className="error-message">{errors.decimals}</div>}
+          {errors.decimals && (
+            <div className="error-message">{errors.decimals}</div>
+          )}
         </div>
 
         <div className="node-field">
@@ -202,12 +188,11 @@ export default function TokenNode({ id, data }) {
             onChange={(e) => {
               const value = e.target.value;
               if (validateField('initialSupply', value)) {
-                updateNodeData({ initialSupply: Number(value) });
+                updateNodeData({ initialSupply: parseInt(value) });
               }
             }}
             min="1"
             max="1000000000"
-            step="1"
             placeholder="1000000"
           />
           {errors.initialSupply && (
@@ -216,90 +201,56 @@ export default function TokenNode({ id, data }) {
         </div>
 
         <div className="node-field">
-          <label className="field-label">Mint Authority</label>
-          <div className="creator-item">
-            <span
-              className="creator-address"
-              onMouseEnter={() => setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
-            >
-              {data.mintAuthority ? 
-                `${data.mintAuthority.slice(0,4)}...${data.mintAuthority.slice(-4)}` : 
-                'Not set'
-              }
-              {showTooltip && data.mintAuthority && (
-                <div className="creator-tooltip">
-                  {data.mintAuthority}
-                </div>
-              )}
-            </span>
-          </div>
+          <label className="field-label">Metadata URI (Optional)</label>
+          <input
+            className="field-value"
+            value={data.uri || ''}
+            onChange={(e) => updateNodeData({ uri: e.target.value })}
+            placeholder="https://..."
+          />
         </div>
 
         <div className="node-actions">
           <button
             className="create-button"
-            disabled={!connected || Object.keys(errors).length > 0}
+            disabled={!connected || isCreating || Object.keys(errors).length > 0}
             onClick={handleCreateToken}
           >
-            Create Token
+            {isCreating ? 'Creating...' : 'Create Token'}
           </button>
         </div>
 
         {data.mint && (
-          <div className="token-info">
+          <div className="node-info">
             <div className="address-container">
               <span>Mint Address: </span>
-              <span 
-                className="truncated-address" 
+              <a
+                href={getExplorerUrl(data.mint)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="address-link"
                 title={data.mint}
               >
-                {`${data.mint.slice(0, 4)}...${data.mint.slice(-4)}`}
-              </span>
+                {truncateAddress(data.mint)}
+              </a>
             </div>
-            <a 
-              href={data.explorerUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="explorer-link"
-            >
-              View on Explorer
-            </a>
+            {data.metadataAddress && (
+              <div className="address-container">
+                <span>Metadata Address: </span>
+                <a
+                  href={getExplorerUrl(data.metadataAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="address-link"
+                  title={data.metadataAddress}
+                >
+                  {truncateAddress(data.metadataAddress)}
+                </a>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Fixed position output handle */}
-      {data.mint && (
-        <Handle
-          type="source"
-          position="right"
-          id="mintAddress"
-          isConnectable={true}
-          isValidConnection={(connection) => {
-            return connection.targetHandle === 'communityMint';
-          }}
-          style={{
-            background: '#14F195',
-            right: -8,
-            width: 12,
-            height: 12,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            position: 'absolute',
-            cursor: 'pointer'
-          }}
-        >
-          <div style={{ display: 'none' }} data-mintaddress={data.mint} />
-        </Handle>
-      )}
-
-      <Handle 
-        type="source" 
-        position="bottom"
-        isConnectable={true}
-        style={{ cursor: 'pointer' }}
-      />
     </div>
   );
 }

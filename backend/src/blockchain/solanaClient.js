@@ -1,49 +1,85 @@
-import pkg from '@solana/web3.js';
-const { 
-  Connection, 
-  Keypair, 
-  LAMPORTS_PER_SOL, 
-  SystemProgram, 
-  Transaction, 
-  PublicKey 
-} = pkg;
+// backend/src/blockchain/solanaClient.js
+import fetch from 'node-fetch';
+global.fetch = fetch;
 
-import { 
-  createInitializeMintInstruction, 
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  createMintToInstruction,
-  TOKEN_PROGRAM_ID, 
-  MINT_SIZE 
-} from '@solana/spl-token';
+import {
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  clusterApiUrl
+} from '@solana/web3.js';
 
-import BN from 'bn.js';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import os from 'os';
+
+import { CustomDaoClient } from './customDaoClient.js';
+
+// --- NEW METAPLEX IMPORTS ---
+import {
+  Metaplex,
+  keypairIdentity,
+  toBigNumber
+} from '@metaplex-foundation/js';
 
 // Configure environment variables
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '../../../.env') });
 
-import { CustomDaoClient } from './customDaoClient.js';
+// Try to load environment variables from multiple possible locations
+const envPaths = [
+  path.join(__dirname, '../../.env'),              // backend/.env
+  path.join(__dirname, '../../../.env'),           // root/.env
+];
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log('Loaded environment variables from:', envPath);
+    envLoaded = true;
+    break;
+  }
+}
+
+if (!envLoaded) {
+  console.error('No .env file found in:', envPaths);
+}
 
 class SolanaClient {
   constructor() {
-    const rpcUrl = process.env.RPC_URL || 'http://localhost:8899';
-    this.validateRpcUrl(rpcUrl);
+    // Get network configuration
+    const network = process.env.SOLANA_NETWORK || 'devnet';
+    const rpcUrl = process.env.RPC_URL || clusterApiUrl(network);
     
+    console.log('Initializing Solana Client with:', {
+      network,
+      rpcUrl,
+      env: process.env.RPC_URL,
+      envPaths
+    });
+
+    this.validateRpcUrl(rpcUrl);
+
+    // Create a Solana connection
     this.connection = new Connection(
-      rpcUrl, 
+      rpcUrl,
       process.env.COMMITMENT || 'confirmed'
     );
+
+    // Load the payer Keypair
     this.payer = this.initializePayerKeypair();
+
+    // Explorer base URL (for providing links in responses)
     this.explorerUrl = process.env.EXPLORER_URL || 'https://explorer.solana.com';
-    
-    // Initialize custom DAO client
+
+    // Initialize the new Metaplex SDK
+    this.metaplex = Metaplex.make(this.connection).use(keypairIdentity(this.payer));
+
+    // DAO client (unchanged)
     this.daoClient = new CustomDaoClient(this.connection, {
       publicKey: this.payer.publicKey,
       signTransaction: async (tx) => {
@@ -51,11 +87,11 @@ class SolanaClient {
         return tx;
       },
       signAllTransactions: async (txs) => {
-        txs.forEach(tx => tx.partialSign(this.payer));
+        txs.forEach((t) => t.partialSign(this.payer));
         return txs;
-      },
+      }
     });
-    
+
     console.log(`Solana Client Initialized:
       Network: ${process.env.SOLANA_NETWORK || 'localnet'}
       RPC: ${rpcUrl}
@@ -79,6 +115,9 @@ class SolanaClient {
     }
   }
 
+  /**
+   * Returns basic network status: version, payer balance, current slot, etc.
+   */
   async getNetworkStatus() {
     try {
       const [version, balance, slot] = await Promise.all([
@@ -100,101 +139,102 @@ class SolanaClient {
     }
   }
 
+  /**
+   * Creates a new SPL token **with** on-chain metadata using Metaplex's createSft().
+   * This will handle:
+   *  - Mint creation
+   *  - Decimals
+   *  - Initial supply (minted to the payer)
+   *  - Token Metadata (so explorers show name/symbol)
+   */
   async createToken(params) {
-    const { name, symbol, decimals, mintAuthority, initialSupply } = params;
-    this.validateTokenParams(params);
+    const {
+      name,
+      symbol,
+      decimals,
+      mintAuthority,
+      initialSupply,
+      uri
+    } = params;
 
-    const mintKeypair = Keypair.generate();
-    const transaction = new Transaction();
+    this.validateTokenParams({ symbol, decimals, initialSupply });
 
     try {
-      // Create and initialize mint
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: this.payer.publicKey,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports: await this.connection.getMinimumBalanceForRentExemption(MINT_SIZE),
-          programId: TOKEN_PROGRAM_ID,
-        }),
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          decimals,
-          new PublicKey(mintAuthority || this.payer.publicKey),
-          null // Freeze authority
-        )
-      );
+      console.log('Creating token with params:', {
+        name,
+        symbol,
+        decimals,
+        initialSupply,
+        uri
+      });
 
-      // Handle initial supply
-      if (initialSupply) {
-        await this.addInitialSupply(
-          transaction,
-          mintKeypair.publicKey,
-          decimals,
-          initialSupply,
-          mintAuthority
-        );
+      // Test connection first
+      try {
+        const version = await this.connection.getVersion();
+        console.log('Connected to Solana:', {
+          version,
+          endpoint: this.connection.rpcEndpoint
+        });
+      } catch (connError) {
+        console.error('Connection test failed:', connError);
+        throw new Error(`Failed to connect to Solana: ${connError.message}`);
       }
 
-      // Sign and send transaction
-      const signature = await this.sendTransaction(transaction, [mintKeypair]);
-
-      return {
+      // Create a "Semi-Fungible Token" (SFT) with the new Metaplex library
+      console.log('Initializing token creation...');
+      const { sft, response } = await this.metaplex.nfts().createSft({
         name: name.trim(),
         symbol: symbol.trim().toUpperCase(),
-        decimals,
-        mint: mintKeypair.publicKey.toBase58(),
-        txId: signature,
-        explorerUrl: `${this.explorerUrl}/tx/${signature}`,
-        ...(initialSupply && { initialSupply })
-      };
+        uri: uri || '',
+        sellerFeeBasisPoints: 0,
+        decimals: decimals,
+        initialSupply: initialSupply
+          ? toBigNumber(initialSupply * 10 ** decimals)
+          : toBigNumber(0),
+        isMutable: false
+      }).run();
 
+      console.log('Token created successfully:', {
+        mint: sft.address.toBase58(),
+        signature: response.signature
+      });
+
+      return {
+        name: sft.name,
+        symbol: sft.symbol,
+        decimals: sft.decimals,
+        mint: sft.address.toBase58(),
+        txId: response.signature,
+        explorerUrl: `${this.explorerUrl}/tx/${response.signature}`,
+        initialSupply: initialSupply || 0,
+        metadataAddress: sft.metadataAddress.toBase58()
+      };
     } catch (error) {
-      console.error('Token Creation Error:', {
-        params,
+      console.error('Token creation failed:', {
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
+        params
       });
       throw new Error(`Token creation failed: ${error.message}`);
     }
   }
 
-  async addInitialSupply(transaction, mint, decimals, supply, authority) {
-    const authorityPubkey = new PublicKey(authority || this.payer.publicKey);
-    const ata = await getAssociatedTokenAddress(mint, authorityPubkey);
-
-    transaction.add(
-      createAssociatedTokenAccountInstruction(
-        this.payer.publicKey,
-        ata,
-        authorityPubkey,
-        mint
-      ),
-      createMintToInstruction(
-        mint,
-        ata,
-        authorityPubkey,
-        BigInt(supply) * BigInt(10 ** decimals)
-      )
-    );
-  }
-
   validateTokenParams({ symbol, decimals, initialSupply }) {
     const errors = [];
-    
+
     if (!symbol || symbol.length < 2 || symbol.length > 5) {
       errors.push('Symbol must be 2-5 characters');
     }
-    
     if (typeof decimals !== 'number' || decimals < 0 || decimals > 9) {
       errors.push('Decimals must be 0-9');
     }
-    
     if (initialSupply) {
-      if (typeof initialSupply !== 'number' || 
-          initialSupply <= 0 ||
-          initialSupply > 1e9 ||
-          !Number.isInteger(initialSupply)) {
+      if (
+        typeof initialSupply !== 'number' ||
+        initialSupply <= 0 ||
+        initialSupply > 1e9 ||
+        !Number.isInteger(initialSupply)
+      ) {
         errors.push('Supply must be integer 1-1,000,000,000');
       }
     }
@@ -204,148 +244,73 @@ class SolanaClient {
     }
   }
 
+  /**
+   * Mint an NFT. (Optional, left as example.)
+   * This uses the older "nfts().create()" approach but for a single edition NFT.
+   */
   async mintNFT(metadata) {
     try {
-      const { name, symbol, uri, creators, royalties } = metadata;
-      this.validateNFTMetadata(metadata);
+      const { name, symbol, uri, royalties } = metadata;
+      if (!name || !uri) {
+        throw new Error('Invalid NFT metadata: name and uri are required');
+      }
 
-      const mintKeypair = Keypair.generate();
-      const transaction = new Transaction();
+      const { nft, response } = await this.metaplex.nfts().create({
+        name,
+        symbol,
+        uri,
+        sellerFeeBasisPoints: royalties || 0
+      });
 
-      // Create NFT mint
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: this.payer.publicKey,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports: await this.connection.getMinimumBalanceForRentExemption(MINT_SIZE),
-          programId: TOKEN_PROGRAM_ID,
-        }),
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          0, // NFT decimals
-          this.payer.publicKey, // Mint authority
-          this.payer.publicKey  // Freeze authority
-        )
-      );
-
-      const signature = await this.sendTransaction(transaction, [mintKeypair]);
-      const metadataAccount = await this.createTokenMetadata(
-        mintKeypair.publicKey,
-        metadata
-      );
-
+      const signature = response.signature;
       return {
-        mint: mintKeypair.publicKey.toBase58(),
+        mint: nft.address.toBase58(),
         signature,
         explorerUrl: `${this.explorerUrl}/tx/${signature}`,
-        metadata: metadataAccount
+        metadata: nft.metadataAddress.toBase58()
       };
-
     } catch (error) {
       console.error('NFT Mint Error:', {
         metadata,
-        error: error.message,
+        message: error.message,
         stack: error.stack
       });
       throw new Error(`NFT mint failed: ${error.message}`);
     }
   }
 
-  validateNFTMetadata({ name, symbol, uri, creators, royalties }) {
-    const errors = [];
-    
-    if (!name || name.trim().length < 3) {
-      errors.push('Name must be ≥3 characters');
-    }
-    
-    if (!symbol || symbol.length > 10) {
-      errors.push('Symbol must be ≤10 characters');
-    }
-    
-    if (!uri || !uri.startsWith('https://')) {
-      errors.push('Metadata URI must be HTTPS URL');
-    }
-    
-    if (creators) {
-      const totalShare = creators.reduce((sum, c) => sum + c.share, 0);
-      if (totalShare !== 100) {
-        errors.push('Creator shares must total 100%');
-      }
-    }
-
-    if (errors.length > 0) {
-      throw new Error(`Invalid NFT metadata: ${errors.join(', ')}`);
-    }
-  }
-
-  async createTokenMetadata(mintAddress, { name, symbol, uri, creators, royalties }) {
-    return {
-      name: name.trim(),
-      symbol: symbol.trim(),
-      uri,
-      creators: creators || [],
-      royalties: royalties || 0,
-      mint: mintAddress.toBase58(),
-      metadataUri: uri,
-      created: new Date().toISOString()
-    };
-  }
-
-  async sendTransaction(transaction, signers = []) {
-    try {
-      transaction.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
-      transaction.feePayer = this.payer.publicKey;
-
-      const uniqueSigners = this.deduplicateSigners([this.payer, ...signers]);
-      uniqueSigners.forEach(s => transaction.partialSign(s));
-
-      const rawTx = transaction.serialize();
-      return await this.connection.sendRawTransaction(rawTx);
-    } catch (error) {
-      throw new Error(`Transaction failed: ${error.message}`);
-    }
-  }
-
-  deduplicateSigners(signers) {
-    return signers.filter((signer, index, self) =>
-      index === self.findIndex(s => 
-        s.publicKey.equals(signer.publicKey)
-      )
-    );
-  }
-
+  /**
+   * Create a DAO using our custom client (unchanged from your original code).
+   */
   async createDAO(params) {
     try {
       console.log('Creating DAO with params:', params);
 
-      // Validate parameters
       const {
         name,
         communityMint,
         votingThreshold,
-        maxVotingTime = 432000, // 5 days default
-        holdUpTime = 86400,     // 1 day default
+        maxVotingTime = 432000, // 5 days
+        holdUpTime = 86400 // 1 day
       } = params;
 
       if (!name || !communityMint) {
         throw new Error('Name and community mint are required');
       }
 
-      // Create DAO using our custom client
+      // Use the custom DAO client you wrote
       const result = await this.daoClient.createDao({
         name,
         communityMint,
         votingThreshold: Math.floor(votingThreshold),
         maxVotingTime,
-        holdUpTime,
+        holdUpTime
       });
 
       return {
         ...result,
-        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`
       };
-
     } catch (error) {
       console.error('DAO Creation Error:', {
         params,
@@ -366,14 +331,13 @@ class SolanaClient {
       }
 
       const result = await this.daoClient.createProposal(daoAddress, {
-        description,
+        description
       });
 
       return {
         ...result,
-        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`
       };
-
     } catch (error) {
       console.error('Proposal Creation Error:', error);
       throw new Error(`Failed to create proposal: ${error.message}`);
@@ -390,14 +354,13 @@ class SolanaClient {
       }
 
       const result = await this.daoClient.castVote(daoAddress, proposalAddress, {
-        voteType,
+        voteType
       });
 
       return {
         ...result,
-        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`
       };
-
     } catch (error) {
       console.error('Vote Casting Error:', error);
       throw new Error(`Failed to cast vote: ${error.message}`);
@@ -417,9 +380,8 @@ class SolanaClient {
 
       return {
         ...result,
-        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`,
+        explorerUrl: `${this.explorerUrl}/tx/${result.txId}`
       };
-
     } catch (error) {
       console.error('Proposal Execution Error:', error);
       throw new Error(`Failed to execute proposal: ${error.message}`);
