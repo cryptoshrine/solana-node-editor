@@ -45,19 +45,31 @@ The Solana Node Editor is built using a microservices architecture, with the fol
 
 User creates a governance token using Token node ----> Token node outputs the mint address ----> DAO node takes the mint address as input ----> DAO node creates the governance program with basic settings
 
-                     DAO Flow Demo Video
+
+https://github.com/user-attachments/assets/411abf8b-939b-459c-8618-419cd9891f6f
+
+
+                   
 
 ### Example 2: Creating a token using a Token Node
 
 This example demonstrates how to use the Token Node to create a token and mint it to the Solana blockchain.
 
-                        Token Demo Video
+                       
+
+https://github.com/user-attachments/assets/f3acbed2-000d-46f3-997d-e6f3ea8d0d9d
+
+
 
 ### Example 3: Creating an NFT using an NFT Node
 
 This example demonstrates how to use the NFT Node to create an NFT and mint it to the Solana blockchain.
 
-                        NFT Demo Video
+                        
+
+
+
+https://github.com/user-attachments/assets/b8fdd527-40b4-4522-a6ce-ad7f026887de
 
 
 
