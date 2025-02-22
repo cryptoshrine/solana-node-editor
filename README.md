@@ -57,7 +57,8 @@ This example demonstrates how to use the Token Node to create a token and mint i
 
                        
 
-https://github.com/user-attachments/assets/f3acbed2-000d-46f3-997d-e6f3ea8d0d9d
+https://github.com/user-attachments/assets/68f34ebc-fb89-4b08-af3e-9e790e2d88e5
+
 
 
 
