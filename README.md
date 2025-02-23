@@ -69,8 +69,8 @@ This example demonstrates how to use the NFT Node to create an NFT and mint it t
                         
 
 
+https://github.com/user-attachments/assets/104bc60a-6fe7-425b-82d1-73f743931f43
 
-https://github.com/user-attachments/assets/b8fdd527-40b4-4522-a6ce-ad7f026887de
 
 
 
