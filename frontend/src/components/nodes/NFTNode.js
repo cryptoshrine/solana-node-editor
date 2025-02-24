@@ -157,6 +157,10 @@ const NFTNode = ({ id, data }) => {
           <label>Name</label>
           <div className="field-value">{data.label || 'Unnamed NFT'}</div>
         </div>
+        <div className="field">
+          <label>Royalty</label>
+          <div className="field-value">{data.royalties ? `${data.royalties}%` : '0%'}</div>
+        </div>
         {mintAddress && (
           <div className="field">
             <label>Explorer</label>
