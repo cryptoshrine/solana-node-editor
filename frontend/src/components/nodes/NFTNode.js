@@ -18,6 +18,12 @@ const generateSymbol = (label) => {
     .toUpperCase() || 'NFT';
 };
 
+// Helper to truncate address
+const truncateAddress = (address) => {
+  if (!address) return '';
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+};
+
 const NFTNode = ({ id, data }) => {
   const [isMinting, setIsMinting] = useState(false);
   const [mintAddress, setMintAddress] = useState(null); // Add state for mint address
@@ -161,6 +167,23 @@ const NFTNode = ({ id, data }) => {
           <label>Royalty</label>
           <div className="field-value">{data.royalties ? `${data.royalties}%` : '0%'}</div>
         </div>
+        {data.creators && data.creators.length > 0 && (
+          <div className="field">
+            <label>Creators</label>
+            <div className="field-value">
+              {data.creators.map((creator, index) => (
+                <div key={index} className="creator-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span title={creator.address} style={{ color: '#000000' }}>
+                    {truncateAddress(creator.address)}
+                  </span>
+                  <span style={{ marginLeft: '8px', color: '#ffffff' }}>
+                    {creator.share}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {mintAddress && (
           <div className="field">
             <label>Explorer</label>
@@ -199,6 +222,10 @@ const NFTNode = ({ id, data }) => {
           .field-value {
             word-break: break-all;
           }
+          .creator-row:hover {
+            background-color: rgba(109, 40, 217, 0.1);
+            border-radius: 4px;
+          }
         `}
       </style>
     </div>
@@ -211,6 +238,13 @@ NFTNode.propTypes = {
     uri: PropTypes.string,
     symbol: PropTypes.string,
     label: PropTypes.string,
+    royalties: PropTypes.number,
+    creators: PropTypes.arrayOf(
+      PropTypes.shape({
+        address: PropTypes.string.isRequired,
+        share: PropTypes.number.isRequired,
+      })
+    ),
     onMint: PropTypes.func,
   }).isRequired,
 };
