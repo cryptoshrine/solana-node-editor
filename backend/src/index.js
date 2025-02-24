@@ -1,3 +1,4 @@
+// backend/src/index.js
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -5,6 +6,7 @@ import dotenv from 'dotenv';
 import solanaRoutes from './routes/solanaRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import simulationRoutes from './routes/simulationRoutes.js';
+import nftRoutes from './routes/nftRoutes.js';
 import ValidatorManager from './services/ValidatorManager.js';
 import { solanaClient } from './blockchain/solanaClient.js';
 
@@ -12,47 +14,51 @@ import { solanaClient } from './blockchain/solanaClient.js';
 dotenv.config();
 
 const app = express();
-const PORT = 3001; // Fixed port to avoid conflicts
+const PORT = 3001;
 const validatorManager = new ValidatorManager();
 
-// Increase header limits
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-// Configure CORS with larger headers
+// Configure CORS before other middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(',') || 'http://localhost:3000',
+  origin: 'http://localhost:3000', // Frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
     'X-Requested-With',
     'Accept',
-    'Origin',
-    'Access-Control-Allow-Headers',
-    'Access-Control-Request-Method',
-    'Access-Control-Request-Headers',
-    'Access-Control-Allow-Origin'
+    'Origin'
   ],
   credentials: true,
-  maxAge: 600,
-  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
 
-// Add header size configuration
-app.use((req, res, next) => {
-  // Increase header size limits
-  req.maxHeadersCount = 100; // Increase max number of headers
-  req.setTimeout(300000); // 5 minutes timeout
-  next();
-});
+// Increase header limits
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-app.use(helmet());
+// Add security headers but configure for local development
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", 'http://localhost:3000', 'http://localhost:3001'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
+    }
+  }
+}));
 
-// Routes
+// Add CORS headers for preflight requests
+app.options('*', cors());
+
+// Mount routes
 app.use('/api/solana', solanaRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/simulate', simulationRoutes);
+app.use('/api/nft', nftRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -75,7 +81,7 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`Backend API running on port ${PORT}`);
       console.log(`Connected to Solana ${process.env.SOLANA_NETWORK} via ${process.env.RPC_URL}`);
-      console.log(`Accepting requests from: ${process.env.CORS_ORIGINS || 'http://localhost:3000'}`);
+      console.log('Accepting requests from: http://localhost:3000');
     });
   } catch (error) {
     console.error('Server startup failed:', error);

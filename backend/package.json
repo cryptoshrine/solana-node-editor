@@ -24,6 +24,9 @@
   "dependencies": {
     "@metaplex-foundation/js": "^0.20.1",
     "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
+    "@metaplex-foundation/umi": "latest",
+    "@metaplex-foundation/umi-bundle-defaults": "latest",
+    "@metaplex-foundation/umi-uploader-irys": "latest",
     "@project-serum/anchor": "^0.26.0",
     "@solana-developers/helpers": "^2.7.0",
     "@solana/spl-governance": "0.3.25",
@@ -37,6 +40,8 @@
     "express": "^4.21.2",
     "helmet": "^8.0.0",
     "node-fetch": "^2.7.0",
+    "body-parser": "^1.20.2",
+    "fs": "0.0.1-security",
     "openai": "^4.24.1"
   },
   "devDependencies": {

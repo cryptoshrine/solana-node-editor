@@ -53,12 +53,12 @@ class SolanaClient {
   constructor() {
     // Get network configuration
     const network = process.env.SOLANA_NETWORK || 'devnet';
-    const rpcUrl = process.env.RPC_URL || clusterApiUrl(network);
+    const rpcUrl = process.env.SOLANA_RPC_URL || clusterApiUrl(network);
     
     console.log('Initializing Solana Client with:', {
       network,
       rpcUrl,
-      env: process.env.RPC_URL,
+      env: process.env.SOLANA_RPC_URL,
       envPaths
     });
 
@@ -107,10 +107,19 @@ class SolanaClient {
 
   initializePayerKeypair() {
     try {
-      const keyfilePath = process.env.PAYER_KEYFILE.replace('~', os.homedir());
-      const keyData = JSON.parse(fs.readFileSync(path.resolve(keyfilePath), 'utf8'));
+      // Use WALLET_PATH from env, with a fallback to test-wallet.json
+      const keyfilePath = process.env.WALLET_PATH || './backend/test-wallet.json';
+      console.log('Loading wallet from:', keyfilePath);
+      
+      const absolutePath = path.resolve(keyfilePath);
+      if (!fs.existsSync(absolutePath)) {
+        throw new Error(`Wallet file not found at ${absolutePath}`);
+      }
+
+      const keyData = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
       return Keypair.fromSecretKey(Uint8Array.from(keyData));
     } catch (error) {
+      console.error('Keypair initialization error:', error);
       throw new Error(`Failed to initialize payer keypair: ${error.message}`);
     }
   }
