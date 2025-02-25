@@ -1,16 +1,51 @@
-import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram, Keypair, SYSVAR_RENT_PUBKEY } from '@solana/web3.js';
 import pkg from '@project-serum/anchor';
 const { Program, AnchorProvider, BN } = pkg;
 import { IDL } from './idl/custom_dao_program.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
+import * as web3 from '@solana/web3.js';
 
 const CUSTOM_DAO_PROGRAM_ID = new PublicKey('3dxp2uBMGa4A2WQktjKbYH3emFTkwc4RfJVNW9JfVmV5');
+
+// Create a simple wallet adapter for Anchor
+class KeypairWalletAdapter {
+  constructor(keypair) {
+    this.keypair = keypair;
+    this.publicKey = keypair.publicKey;
+  }
+
+  async signTransaction(tx) {
+    tx.partialSign(this.keypair);
+    return tx;
+  }
+
+  async signAllTransactions(txs) {
+    return txs.map((tx) => {
+      tx.partialSign(this.keypair);
+      return tx;
+    });
+  }
+}
 
 export class CustomDaoClient {
   constructor(connection, wallet) {
     this.connection = connection;
-    this.wallet = wallet;
-    this.provider = new AnchorProvider(connection, wallet, {
+    
+    // Check if wallet is a keypair (has secretKey)
+    if (wallet.secretKey) {
+      // If it's a keypair, create a wallet adapter
+      this.wallet = new KeypairWalletAdapter(wallet);
+    } 
+    // Check if wallet already has signTransaction method
+    else if (wallet.signTransaction) {
+      this.wallet = wallet;
+    } 
+    // Otherwise, throw an error
+    else {
+      throw new Error('Wallet must be a Keypair or implement signTransaction method');
+    }
+    
+    this.provider = new AnchorProvider(connection, this.wallet, {
       commitment: 'confirmed',
       preflightCommitment: 'confirmed',
     });
@@ -53,7 +88,6 @@ export class CustomDaoClient {
         maxVotingTime: daoAccount.config.maxVotingTime.toString(),
         holdUpTime: daoAccount.config.holdUpTime.toString(),
         proposalCount: daoAccount.proposalCount.toString(),
-        totalSupply: daoAccount.totalSupply.toString(),
         txId: tx,
       };
     } catch (error) {

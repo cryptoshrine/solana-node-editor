@@ -6,10 +6,12 @@ import { PublicKey, Keypair } from '@solana/web3.js';
 import { TokenService } from '../services/token.js';
 import { wallet } from '../services/wallet.js';
 import * as mplTokenMetadata from '@metaplex-foundation/mpl-token-metadata';
+import { CustomDaoClient } from '../blockchain/customDaoClient.js';
 const { findMetadataPda } = mplTokenMetadata;
 
 const router = Router();
 const tokenService = new TokenService(solanaClient.connection);
+const customDaoClient = new CustomDaoClient(solanaClient.connection, solanaClient.payer);
 
 // Enable CORS preflight for all routes
 router.options('*', (req, res) => {
@@ -209,27 +211,26 @@ router.post('/create-dao', async (req, res) => {
 
     // Create DAO
     console.log('Creating DAO with validated parameters...');
-    const result = await solanaClient.createDAO({
+    const result = await customDaoClient.createDao({
       name: name.trim(),
       communityMint,
       votingThreshold: Number(votingThreshold),
       maxVotingTime: maxVotingTime ? Number(maxVotingTime) : undefined,
-      holdUpTime: holdUpTime ? Number(holdUpTime) : undefined,
-      authority: authority || undefined
+      holdUpTime: holdUpTime ? Number(holdUpTime) : undefined
     });
 
     console.log('DAO created successfully:', {
       name: result.name,
-      realmAddress: result.realmAddress,
+      address: result.address,
       txId: result.txId
     });
 
     // Return success response
     res.json({
       success: true,
-      realmAddress: result.realmAddress,
+      address: result.address,
       txId: result.txId,
-      explorerUrl: result.explorerUrl,
+      explorerUrl: `https://explorer.solana.com/address/${result.address}?cluster=${solanaClient.NETWORK}`,
       name: result.name
     });
   } catch (error) {
