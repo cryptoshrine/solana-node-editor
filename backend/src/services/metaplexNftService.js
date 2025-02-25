@@ -86,182 +86,106 @@ export async function createMetaplexNft({ name, symbol, uri, royalties = 0, crea
     const mintingWalletAddress = mintingWallet.toBase58();
     console.log('Minting wallet:', mintingWalletAddress);
 
-    // Initialize creators array
-    let nftCreators = [];
+    // Initialize creators array - ALWAYS include the minting wallet as a verified creator
+    // This is the key change to ensure NFT creation never fails due to creator verification
+    let nftCreators = [{
+      address: mintingWallet,
+      share: 100, // Default to 100%, will adjust if other valid creators exist
+      authority: mx.identity(),
+      verified: true
+    }];
     
-    // Check if any of the specified creators is the minting wallet
-    const hasMintingWalletAsCreator = creators.some(
-      creator => creator.address === mintingWalletAddress
-    );
-    
-    // Special case: If one of the creators is the minting wallet address
-    if (hasMintingWalletAsCreator) {
-      console.log('Minting wallet detected in creators list, using as single entry');
+    // If no creators specified or invalid creators (like system program address), use minting wallet only
+    if (!creators || creators.length === 0 || 
+        (creators.length === 1 && creators[0].address === '11111111111111111111111111111111')) {
+      console.log(`Using only minting wallet as creator with 100% share (royalties: ${royalties}%)`);
+      // nftCreators is already set to minting wallet with 100%
+    }
+    // If creators are specified, try to add them but keep minting wallet as primary creator
+    else {
+      // Clear the default array since we'll rebuild it
+      nftCreators = [];
       
-      // If creators only include minting wallet, use a single entry with 100%
-      if (creators.length === 1 && creators[0].address === mintingWalletAddress) {
-        nftCreators = [{
-          address: mintingWallet,
-          share: 100,
-          authority: mx.identity(),
-          verified: true
-        }];
-      } else {
-        // Filter out the minting wallet from the creators array to prevent duplicates
-        const otherCreators = creators.filter(
-          creator => creator.address !== mintingWalletAddress
-        );
+      // Set minimum share for minting wallet (50% ensures it has significant control)
+      const MIN_MINTING_WALLET_SHARE = 50;
+      
+      // First, collect all potentially valid creators (excluding minting wallet which we'll add separately)
+      let additionalCreators = [];
+      let totalValidShare = 0;
+      
+      for (const creator of creators) {
+        // Skip if this is the minting wallet (we'll add it separately)
+        if (creator.address === mintingWalletAddress) {
+          continue;
+        }
         
-        // Get the share from the original minting wallet creator entry
-        const mintingWalletCreator = creators.find(
-          creator => creator.address === mintingWalletAddress
-        );
-        const mintingWalletShare = mintingWalletCreator ? mintingWalletCreator.share : 0;
-        
-        // Calculate total shares excluding minting wallet
-        const otherCreatorsShareSum = otherCreators.reduce(
-          (sum, creator) => sum + creator.share, 
-          0
-        );
-        
-        // Ensure total shares sum to 100%
-        const totalShare = mintingWalletShare + otherCreatorsShareSum;
-        
-        if (totalShare !== 100) {
-          // Adjust shares to sum to 100%
-          const adjustmentFactor = 100 / totalShare;
-          
-          // Add minting wallet as verified creator
-          nftCreators.push({
-            address: mintingWallet,
-            share: Math.round(mintingWalletShare * adjustmentFactor),
-            authority: mx.identity(),
-            verified: true
+        try {
+          const creatorPubkey = new PublicKey(creator.address);
+          additionalCreators.push({
+            address: creatorPubkey,
+            share: creator.share
           });
-          
-          // Add other creators with adjusted shares
-          for (const creator of otherCreators) {
-            try {
-              const creatorPubkey = new PublicKey(creator.address);
-              const accountInfo = await mx.connection.getAccountInfo(creatorPubkey);
-              
-              if (accountInfo) {
-                nftCreators.push({
-                  address: creatorPubkey,
-                  share: Math.round(creator.share * adjustmentFactor),
-                  authority: mx.identity(),
-                  verified: false
-                });
-                console.log(`Added creator ${creator.address} with adjusted share`);
-              } else {
-                console.warn(`Creator account ${creator.address} not found, skipping...`);
-              }
-            } catch (err) {
-              console.warn(`Invalid creator address ${creator.address}, skipping:`, err.message);
-            }
-          }
-        } else {
-          // Total is already 100%, no need to adjust
-          // Add minting wallet as verified creator
-          nftCreators.push({
-            address: mintingWallet,
-            share: mintingWalletShare,
-            authority: mx.identity(),
-            verified: true
-          });
-          
-          // Add other creators with their original shares
-          for (const creator of otherCreators) {
-            try {
-              const creatorPubkey = new PublicKey(creator.address);
-              const accountInfo = await mx.connection.getAccountInfo(creatorPubkey);
-              
-              if (accountInfo) {
-                nftCreators.push({
-                  address: creatorPubkey,
-                  share: creator.share,
-                  authority: mx.identity(),
-                  verified: false
-                });
-                console.log(`Added creator ${creator.address} with share ${creator.share}`);
-              } else {
-                console.warn(`Creator account ${creator.address} not found, skipping...`);
-              }
-            } catch (err) {
-              console.warn(`Invalid creator address ${creator.address}, skipping:`, err.message);
-            }
-          }
+          totalValidShare += creator.share;
+          console.log(`Added potential creator ${creator.address} with share ${creator.share}`);
+        } catch (err) {
+          console.warn(`Invalid creator address format ${creator.address}, skipping:`, err.message);
+          // Don't add invalid addresses
         }
       }
-    } else {
-      // No creators or none of them is the minting wallet
-      if (!creators || creators.length === 0) {
-        // No creators specified, use minting wallet with 100%
-        nftCreators = [{
+      
+      // Calculate shares based on MIN_MINTING_WALLET_SHARE
+      if (additionalCreators.length > 0) {
+        // If additional creators would have too much share, scale them down
+        if (totalValidShare > (100 - MIN_MINTING_WALLET_SHARE)) {
+          const availableShare = 100 - MIN_MINTING_WALLET_SHARE;
+          const scaleFactor = availableShare / totalValidShare;
+          
+          additionalCreators.forEach(creator => {
+            creator.share = Math.floor(creator.share * scaleFactor);
+          });
+          
+          console.log(`Scaled down additional creators to fit within ${availableShare}% share`);
+        }
+        
+        // Calculate what's left for minting wallet after other creators
+        const updatedTotalShare = additionalCreators.reduce((sum, creator) => sum + creator.share, 0);
+        const mintingWalletShare = 100 - updatedTotalShare;
+        
+        // Add minting wallet as first creator (verified)
+        nftCreators.push({
           address: mintingWallet,
-          share: 100,
+          share: mintingWalletShare,
           authority: mx.identity(),
           verified: true
-        }];
-      } else {
-        // Validate all creators and calculate total share
-        let validCreators = [];
-        let totalShare = 0;
+        });
         
-        for (const creator of creators) {
-          try {
-            const creatorPubkey = new PublicKey(creator.address);
-            const accountInfo = await mx.connection.getAccountInfo(creatorPubkey);
-            
-            if (accountInfo) {
-              validCreators.push({
-                address: creatorPubkey,
-                share: creator.share
-              });
-              totalShare += creator.share;
-              console.log(`Validated creator ${creator.address} with share ${creator.share}`);
-            } else {
-              console.warn(`Creator account ${creator.address} not found, skipping...`);
-            }
-          } catch (err) {
-            console.warn(`Invalid creator address ${creator.address}, skipping:`, err.message);
-          }
-        }
-        
-        // If total share is not 100%, adjust to make it 100%
-        if (totalShare !== 100 && validCreators.length > 0) {
-          const adjustmentFactor = 100 / totalShare;
-          for (let i = 0; i < validCreators.length; i++) {
-            // For the last creator, ensure we hit exactly 100%
-            if (i === validCreators.length - 1) {
-              const currentTotal = nftCreators.reduce((sum, creator) => sum + creator.share, 0);
-              validCreators[i].share = 100 - currentTotal;
-            } else {
-              validCreators[i].share = Math.round(validCreators[i].share * adjustmentFactor);
-            }
-          }
-        }
-        
-        // Add validated creators to nftCreators
-        for (const creator of validCreators) {
+        // Add additional creators as unverified
+        additionalCreators.forEach(creator => {
           nftCreators.push({
             address: creator.address,
             share: creator.share,
             authority: mx.identity(),
             verified: false
           });
-          console.log(`Added creator ${creator.address.toBase58()} with share ${creator.share}`);
-        }
+        });
+      } else {
+        // No valid additional creators, use only minting wallet
+        nftCreators = [{
+          address: mintingWallet,
+          share: 100,
+          authority: mx.identity(),
+          verified: true
+        }];
       }
     }
     
     // Final check: ensure total is exactly 100%
     const finalTotal = nftCreators.reduce((sum, creator) => sum + creator.share, 0);
     if (finalTotal !== 100 && nftCreators.length > 0) {
-      // Adjust the last creator to make the total exactly 100%
+      // Adjust the minting wallet (first creator) to make the total exactly 100%
       const diff = 100 - finalTotal;
-      nftCreators[nftCreators.length - 1].share += diff;
-      console.log(`Adjusted last creator share by ${diff} to ensure total of 100%`);
+      nftCreators[0].share += diff;
+      console.log(`Adjusted minting wallet share by ${diff} to ensure total of 100%`);
     }
 
     console.log('Final creators configuration:', nftCreators);
