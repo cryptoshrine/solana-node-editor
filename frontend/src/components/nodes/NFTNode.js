@@ -110,22 +110,27 @@ const NFTNode = ({ id, data }) => {
   const displaySymbol = data.symbol || (data.label ? generateSymbol(data.label) : 'NFT');
 
   return (
-    <div className="node nft-node">
+    <div className="node nft-node" style={{
+      borderColor: mintAddress ? '#00C853' : '#6d28d9',
+      borderWidth: '2px',
+      borderStyle: 'solid',
+      backgroundColor: mintAddress ? 'rgba(0, 200, 83, 0.1)' : 'rgba(109, 40, 217, 0.1)'
+    }}>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
         <h4>🖼 {data.label || 'NFT Node'}</h4>
         <button
           className={`mint-button ${isMinting ? 'minting' : ''}`}
           onClick={handleMint}
-          disabled={!data.uri || isMinting}
-          title={!data.uri ? 'Missing metadata URI' : isMinting ? 'Minting in progress...' : 'Mint NFT'}
+          disabled={!data.uri || isMinting || mintAddress}
+          title={!data.uri ? 'Missing metadata URI' : isMinting ? 'Minting in progress...' : mintAddress ? 'NFT already minted' : 'Mint NFT'}
           style={{
-            cursor: !data.uri || isMinting ? 'not-allowed' : 'pointer',
-            opacity: !data.uri || isMinting ? 0.6 : 1,
+            cursor: !data.uri || isMinting || mintAddress ? 'not-allowed' : 'pointer',
+            opacity: !data.uri || isMinting || mintAddress ? 0.6 : 1,
             position: 'relative',
             minWidth: '100px',
             padding: '8px 16px',
-            backgroundColor: isMinting ? '#4a1d96' : '#6d28d9',
+            backgroundColor: isMinting ? '#4a1d96' : mintAddress ? '#00C853' : '#6d28d9',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
@@ -145,38 +150,36 @@ const NFTNode = ({ id, data }) => {
               </span>
               Minting...
             </>
-          ) : (
-            'Mint NFT'
-          )}
+          ) : mintAddress ? '✓ Minted' : 'Mint NFT'}
         </button>
       </div>
       <div className="node-body">
-        <div className="field">
-          <label>URI</label>
-          <div className="field-value">{data.uri || 'No metadata URI provided'}</div>
+        <div className="field" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <label>Name:</label>
+          <div className="field-value" style={{ textAlign: 'right' }}>{data.label || 'Unnamed NFT'}</div>
         </div>
-        <div className="field">
-          <label>Symbol</label>
-          <div className="field-value">{displaySymbol}</div>
+        <div className="field" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <label>Symbol:</label>
+          <div className="field-value" style={{ textAlign: 'right' }}>{displaySymbol}</div>
         </div>
-        <div className="field">
-          <label>Name</label>
-          <div className="field-value">{data.label || 'Unnamed NFT'}</div>
+        <div className="field" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <label>URI:</label>
+          <div className="field-value" style={{ textAlign: 'right', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.uri || 'No metadata URI provided'}</div>
         </div>
-        <div className="field">
-          <label>Royalty</label>
-          <div className="field-value">{data.royalties ? `${data.royalties}%` : '0%'}</div>
+        <div className="field" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <label>Royalty:</label>
+          <div className="field-value" style={{ textAlign: 'right' }}>{data.royalties ? `${data.royalties}%` : '0%'}</div>
         </div>
         {data.creators && data.creators.length > 0 && (
-          <div className="field">
-            <label>Creators</label>
+          <div className="field" style={{ marginBottom: '8px' }}>
+            <label>Creators:</label>
             <div className="field-value">
               {data.creators.map((creator, index) => (
                 <div key={index} className="creator-row" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <span title={creator.address} style={{ color: '#000000' }}>
                     {truncateAddress(creator.address)}
                   </span>
-                  <span style={{ marginLeft: '8px', color: '#ffffff' }}>
+                  <span style={{ marginLeft: '8px' }}>
                     {creator.share}%
                   </span>
                 </div>
@@ -185,19 +188,49 @@ const NFTNode = ({ id, data }) => {
           </div>
         )}
         {mintAddress && (
-          <div className="field">
-            <label>Explorer</label>
-            <div className="field-value">
-              <a
-                href={`https://explorer.solana.com/address/${mintAddress}?cluster=devnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: '#f44336', textDecoration: 'underline', cursor: 'pointer' }}
+          <>
+            <div className="field" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label>Mint Address:</label>
+              <div className="field-value" style={{ textAlign: 'right' }}>
+                {truncateAddress(mintAddress)}
+              </div>
+            </div>
+            <div className="field" style={{ marginTop: '12px' }}>
+              <button
+                onClick={() => window.open(`https://solscan.io/token/${mintAddress}?cluster=devnet`, '_blank')}
+                className="explorer-button"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  marginBottom: '8px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
+              >
+                View on Solscan
+              </button>
+              <button
+                onClick={() => window.open(`https://explorer.solana.com/address/${mintAddress}?cluster=devnet`, '_blank')}
+                className="explorer-button"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#2196F3',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s'
+                }}
               >
                 View on Explorer
-              </a>
+              </button>
             </div>
-          </div>
+          </>
         )}
       </div>
       <Handle type="source" position={Position.Bottom} />
@@ -208,13 +241,22 @@ const NFTNode = ({ id, data }) => {
             to { transform: rotate(360deg); }
           }
           .mint-button:not(:disabled):hover {
-            background-color: #5b21b6 !important;
+            background-color: ${mintAddress ? '#00A046' : '#5b21b6'} !important;
             transform: translateY(-1px);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
           .mint-button:not(:disabled):active {
             transform: translateY(0);
-            background-color: #4c1d95 !important;
+            background-color: ${mintAddress ? '#009940' : '#4c1d95'} !important;
+          }
+          .explorer-button:hover {
+            background-color: #1976D2 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .explorer-button:active {
+            transform: translateY(0);
+            background-color: #0D47A1 !important;
           }
           .field {
             margin-bottom: 8px;
