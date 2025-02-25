@@ -1,158 +1,184 @@
-import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
-import { createMint, getOrCreateAssociatedTokenAccount, mintTo } from '@solana/spl-token';
+import { 
+  createMint,
+  getMint,
+  createAssociatedTokenAccount,
+  getAssociatedTokenAddress,
+  mintTo,
+  getAccount
+} from '@solana/spl-token';
+import { 
+  Connection, 
+  Keypair, 
+  PublicKey, 
+  LAMPORTS_PER_SOL,
+  Transaction,
+  sendAndConfirmTransaction
+} from '@solana/web3.js';
+import { solanaClient } from '../blockchain/solanaClient.js';
 import { createCreateMetadataAccountV3Instruction } from '@metaplex-foundation/mpl-token-metadata';
+import { findMetadataPda } from '@metaplex-foundation/js';
 
 export class TokenService {
-  constructor(connection) {
-    this.connection = connection;
+  constructor() {
+    this.connection = solanaClient.connection;
+    this.payer = solanaClient.payer;
   }
 
   async createTokenWithMetadata({
-    payer,
     name,
     symbol,
     decimals,
     initialSupply,
-    uri = ''
+    uri = 'none'
   }) {
+    console.log('Starting token creation process with params:', {
+      name,
+      symbol,
+      decimals,
+      initialSupply,
+      uri
+    });
+    
     try {
-      console.log('Starting token creation process with params:', {
+      // Check wallet balance
+      const balance = await this.connection.getBalance(this.payer.publicKey);
+      console.log(`Wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+      
+      // Ensure we have enough SOL for the creation process
+      const minimumBalance = 0.05 * LAMPORTS_PER_SOL; // 0.05 SOL minimum
+      if (balance < minimumBalance) {
+        console.log(`Insufficient balance: ${balance / LAMPORTS_PER_SOL} SOL, minimum required: 0.05 SOL`);
+        
+        // Try to request an airdrop if on devnet
+        if (solanaClient.NETWORK === 'devnet' || solanaClient.NETWORK === 'testnet') {
+          try {
+            console.log('Attempting to request an airdrop...');
+            const signature = await this.connection.requestAirdrop(
+              this.payer.publicKey,
+              LAMPORTS_PER_SOL
+            );
+            await this.connection.confirmTransaction(signature, 'confirmed');
+            console.log('Airdrop successful!');
+          } catch (airdropError) {
+            console.error('Airdrop failed:', airdropError);
+            throw new Error('Insufficient funds and airdrop failed. Please fund the wallet manually.');
+          }
+        } else {
+          throw new Error('Insufficient funds to create token. Please ensure the wallet has enough SOL.');
+        }
+      }
+
+      // Create the token mint
+      console.log('Creating token mint...');
+      const mintKeypair = Keypair.generate();
+      const mintAuthority = this.payer.publicKey;
+      const freezeAuthority = this.payer.publicKey;
+
+      // Create mint account
+      const tokenMint = await createMint(
+        this.connection,
+        this.payer,
+        mintAuthority,
+        freezeAuthority,
+        decimals,
+        mintKeypair
+      );
+      console.log('Token mint created:', tokenMint.toBase58());
+
+      // Create metadata
+      console.log('Creating token metadata...');
+      const metadataPDA = findMetadataPda(tokenMint);
+      
+      const tokenMetadata = {
         name,
         symbol,
-        decimals,
-        initialSupply,
-        uri: uri ? 'provided' : 'none'
-      });
-
-      // 1. Create the token mint
-      console.log('Creating token mint...');
-      const mintPubkey = await createMint(
-        this.connection,
-        payer,
-        payer.publicKey,
-        null, // No freeze authority
-        decimals
-      );
-      console.log('Token mint created:', mintPubkey.toBase58());
-
-      // 2. Create metadata (name and symbol are required, uri is optional)
-      let metadataAddress = null;
-      let metadataSignature = null;
-      
-      if (name && symbol) {  // Changed condition: only name and symbol required
-        console.log('Creating token metadata...');
-        const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-        
-        const [metadataPDA] = PublicKey.findProgramAddressSync(
-          [
-            Buffer.from('metadata'),
-            TOKEN_METADATA_PROGRAM_ID.toBuffer(),
-            mintPubkey.toBuffer(),
-          ],
-          TOKEN_METADATA_PROGRAM_ID
-        );
-
-        const metadataData = {
-          name: `${name} (${symbol})`,  // Format: TOKEN NAME (SYMBOL)
-          symbol,
-          uri: uri || '',  // Use empty string if uri not provided
-          sellerFeeBasisPoints: 0,
-          creators: null,
-          collection: null,
-          uses: null,
-        };
-
-        const createMetadataIx = createCreateMetadataAccountV3Instruction(
-          {
-            metadata: metadataPDA,
-            mint: mintPubkey,
-            mintAuthority: payer.publicKey,
-            payer: payer.publicKey,
-            updateAuthority: payer.publicKey,
-          },
-          {
-            createMetadataAccountArgsV3: {
-              data: metadataData,
-              isMutable: true,
-              collectionDetails: null,
-            },
-          }
-        );
-
-        const metadataTx = new Transaction().add(createMetadataIx);
-        metadataSignature = await sendAndConfirmTransaction(
-          this.connection,
-          metadataTx,
-          [payer]
-        );
-
-        metadataAddress = metadataPDA.toBase58();
-        console.log('Metadata created successfully:', {
-          address: metadataAddress,
-          signature: metadataSignature,
-          data: metadataData  // Log the actual metadata being set
-        });
-      } else {
-        console.log('Skipping metadata creation (missing name or symbol)');
-      }
-
-      // 3. Create ATA and mint initial supply if specified
-      let mintSignature = null;
-      if (initialSupply > 0) {
-        console.log('Creating Associated Token Account and minting initial supply...');
-        const tokenAccount = await getOrCreateAssociatedTokenAccount(
-          this.connection,
-          payer,
-          mintPubkey,
-          payer.publicKey
-        );
-
-        console.log('Token account created:', tokenAccount.address.toBase58());
-
-        const rawAmount = initialSupply * (10 ** decimals);
-        mintSignature = await mintTo(
-          this.connection,
-          payer,
-          mintPubkey,
-          tokenAccount.address,
-          payer,
-          rawAmount
-        );
-
-        console.log('Initial supply minted successfully:', {
-          amount: initialSupply,
-          rawAmount,
-          signature: mintSignature
-        });
-      } else {
-        console.log('Skipping initial supply (not specified or zero)');
-      }
-
-      const result = {
-        mint: mintPubkey.toBase58(),
-        metadataAddress,
-        metadataSignature,
-        mintSignature,
-        success: true
+        uri,
+        sellerFeeBasisPoints: 0,
+        creators: null,
+        collection: null,
+        uses: null
       };
 
-      console.log('Token creation completed successfully:', result);
-      return result;
+      const createMetadataInstruction = createCreateMetadataAccountV3Instruction(
+        {
+          metadata: metadataPDA,
+          mint: tokenMint,
+          mintAuthority: this.payer.publicKey,
+          payer: this.payer.publicKey,
+          updateAuthority: this.payer.publicKey,
+        },
+        {
+          createMetadataAccountArgsV3: {
+            data: tokenMetadata,
+            isMutable: true,
+            collectionDetails: null
+          }
+        }
+      );
 
+      const metadataTransaction = new Transaction().add(createMetadataInstruction);
+      const metadataTxSignature = await sendAndConfirmTransaction(
+        this.connection,
+        metadataTransaction,
+        [this.payer]
+      );
+      console.log('Metadata created. Transaction signature:', metadataTxSignature);
+
+      // Mint tokens if initialSupply is provided
+      if (initialSupply) {
+        console.log(`Minting ${initialSupply} tokens to wallet...`);
+        const associatedTokenAccount = await getAssociatedTokenAddress(
+          tokenMint,
+          this.payer.publicKey
+        );
+
+        // Create token account if it doesn't exist
+        try {
+          await getAccount(this.connection, associatedTokenAccount);
+        } catch (error) {
+          // Account doesn't exist, create it
+          console.log('Creating associated token account...');
+          await createAssociatedTokenAccount(
+            this.connection,
+            this.payer,
+            tokenMint,
+            this.payer.publicKey
+          );
+        }
+
+        // Mint tokens to the associated token account
+        console.log('Minting tokens...');
+        await mintTo(
+          this.connection,
+          this.payer,
+          tokenMint,
+          associatedTokenAccount,
+          this.payer,
+          initialSupply * (10 ** decimals)
+        );
+        console.log('Tokens minted successfully!');
+      }
+
+      return {
+        tokenAddress: tokenMint.toBase58(),
+        metadata: tokenMetadata,
+        owner: this.payer.publicKey.toBase58(),
+      };
     } catch (error) {
       console.error('Error in createTokenWithMetadata:', {
         error: error.message,
         stack: error.stack,
-        params: {
-          name,
-          symbol,
-          decimals,
-          initialSupply,
-          uri: uri ? 'provided' : 'none'
-        }
+        params: { name, symbol, decimals, initialSupply, uri }
       });
       
-      throw new Error(`Token creation failed: ${error.message}`);
+      // Provide a more user-friendly error message
+      if (error.message.includes('insufficient funds')) {
+        throw new Error('Token creation failed: Insufficient SOL to pay for transaction. Please fund your wallet.');
+      } else if (error.message.includes('rate limit')) {
+        throw new Error('Token creation failed: RPC rate limit reached. Please try again later.');
+      } else {
+        throw new Error(`Token creation failed: ${error.message}`);
+      }
     }
   }
 

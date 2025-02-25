@@ -2,9 +2,11 @@
 
 import { Router } from 'express';
 import { solanaClient } from '../blockchain/solanaClient.js';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Keypair } from '@solana/web3.js';
 import { TokenService } from '../services/token.js';
 import { wallet } from '../services/wallet.js';
+import * as mplTokenMetadata from '@metaplex-foundation/mpl-token-metadata';
+const { findMetadataPda } = mplTokenMetadata;
 
 const router = Router();
 const tokenService = new TokenService(solanaClient.connection);
@@ -110,15 +112,23 @@ router.post('/create-token', async (req, res) => {
     });
 
     console.log('Token created successfully:', result);
+    
+    // The token service returns:
+    // {
+    //   tokenAddress: string,  // The mint address
+    //   metadata: object,      // Metadata object without address field
+    //   owner: string          // Wallet address
+    // }
+    
+    // Since we don't have direct access to the metadata address, we'll send what we have
     res.json({
       success: true,
       token: {
         name,
         symbol: symbol.toUpperCase(),
         decimals,
-        mint: result.mint,
-        metadataAddress: result.metadataAddress,
-        metadataSignature: result.metadataSignature,
+        mint: result.tokenAddress, // Using tokenAddress as mint address
+        // Note: We won't include metadataAddress since we can't reliably calculate it here
         initialSupply
       }
     });
